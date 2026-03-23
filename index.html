@@ -113,10 +113,14 @@
             const [transactions, setTransactions] = useState([]);
             const [savingsGoals, setSavingsGoals] = useState([]);
             const [assets, setAssets] = useState([]);
+            const [budgets, setBudgets] = useState({});
             const [currentMonth, setCurrentMonth] = useState(new Date());
             const [showForm, setShowForm] = useState(false);
             const [showGoalForm, setShowGoalForm] = useState(false);
             const [showAssetForm, setShowAssetForm] = useState(false);
+            const [showBudgetModal, setShowBudgetModal] = useState(false);
+            const [showNetWorthModal, setShowNetWorthModal] = useState(false);
+            const [activeFilter, setActiveFilter] = useState('all');
             const [searchQuery, setSearchQuery] = useState('');
             const [isDarkMode, setIsDarkMode] = useState(false);
             const [formData, setFormData] = useState({
@@ -143,6 +147,7 @@
                 const savedData = localStorage.getItem(STORAGE_KEY);
                 const savedGoals = localStorage.getItem(STORAGE_KEY + '_goals');
                 const savedAssets = localStorage.getItem(STORAGE_KEY + '_assets');
+                const savedBudgets = localStorage.getItem(STORAGE_KEY + '_budgets');
                 const savedDark = localStorage.getItem(STORAGE_KEY + '_dark');
                 if (savedData) {
                     try { setTransactions(JSON.parse(savedData)); } catch(e) { console.error(e); }
@@ -152,6 +157,9 @@
                 }
                 if (savedAssets) {
                     try { setAssets(JSON.parse(savedAssets)); } catch(e) { console.error(e); }
+                }
+                if (savedBudgets) {
+                    try { setBudgets(JSON.parse(savedBudgets)); } catch(e) { console.error(e); }
                 }
                 if (savedDark !== null) {
                     setIsDarkMode(savedDark === 'true');
@@ -165,6 +173,7 @@
                 localStorage.setItem(STORAGE_KEY, JSON.stringify(transactions));
                 localStorage.setItem(STORAGE_KEY + '_goals', JSON.stringify(savingsGoals));
                 localStorage.setItem(STORAGE_KEY + '_assets', JSON.stringify(assets));
+                localStorage.setItem(STORAGE_KEY + '_budgets', JSON.stringify(budgets));
                 localStorage.setItem(STORAGE_KEY + '_dark', isDarkMode.toString());
                 
                 if (isDarkMode) {
@@ -172,7 +181,7 @@
                 } else {
                     document.body.style.backgroundColor = '#f8fafc';
                 }
-            }, [transactions, savingsGoals, assets, isDarkMode]);
+            }, [transactions, savingsGoals, assets, budgets, isDarkMode]);
 
             const monthlyTransactions = useMemo(() => {
                 const start = dayjs(currentMonth).startOf('month');
@@ -185,6 +194,11 @@
                     return matchesMonth && matchesSearch;
                 });
             }, [transactions, currentMonth, searchQuery]);
+
+            const filteredTransactions = useMemo(() => {
+                if (activeFilter === 'all') return monthlyTransactions;
+                return monthlyTransactions.filter(t => t.type === activeFilter);
+            }, [monthlyTransactions, activeFilter]);
 
             const summary = useMemo(() => {
                 const income = monthlyTransactions.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
@@ -226,6 +240,29 @@
                 if (ratio > 0.8) return { label: 'Warning', color: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-50 dark:bg-amber-900/20', dot: 'bg-amber-600 dark:bg-amber-400' };
                 return { label: 'On Track', color: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-50 dark:bg-emerald-900/20', dot: 'bg-emerald-600 dark:bg-emerald-400' };
             }, [summary]);
+
+            const financialHealth = useMemo(() => {
+                const savingsRate = summary.income > 0 ? (summary.balance / summary.income) * 100 : 0;
+                const budgetAdherence = Object.keys(budgets).length > 0 ? 
+                    Object.keys(budgets).filter(cat => {
+                        const spent = categoryBreakdown.find(c => c.name === cat)?.amount || 0;
+                        return spent <= budgets[cat];
+                    }).length / Object.keys(budgets).length : 1;
+                
+                let score = 0;
+                if (savingsRate > 20) score += 40;
+                else if (savingsRate > 10) score += 25;
+                else if (savingsRate > 0) score += 10;
+                
+                score += budgetAdherence * 40;
+                if (summary.balance > 0) score += 20;
+                
+                return {
+                    score: Math.min(score, 100),
+                    label: score > 80 ? 'Excellent' : score > 60 ? 'Good' : score > 40 ? 'Fair' : 'Needs Work',
+                    color: score > 80 ? 'text-emerald-500' : score > 60 ? 'text-blue-500' : score > 40 ? 'text-amber-500' : 'text-rose-500'
+                };
+            }, [summary, budgets, categoryBreakdown]);
 
             const comparison = useMemo(() => {
                 const prevMonth = dayjs(currentMonth).subtract(1, 'month');
@@ -467,12 +504,12 @@
                         </header>
 
                         <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                            <SummaryCard title="Income" amount={summary.income} color="text-emerald-600" icon={<Icons.TrendingUp />} onAdd={() => { setFormData({...formData, type: 'income', category: 'General'}); setShowForm(true); }} />
-                            <SummaryCard title="Bills" amount={summary.bills} color="text-amber-600" icon={<Icons.FileText />} onAdd={() => { setFormData({...formData, type: 'bill', category: 'Housing'}); setShowForm(true); }} />
-                            <SummaryCard title="Spending" amount={summary.spending} color="text-rose-600" icon={<Icons.TrendingDown />} onAdd={() => { setFormData({...formData, type: 'spending', category: 'Food'}); setShowForm(true); }} />
-                            <SummaryCard title="Balance" amount={summary.balance} color={summary.balance >= 0 ? "text-blue-600" : "text-red-600"} icon={<Icons.CreditCard />} />
+                            <SummaryCard title="Income" amount={summary.income} color="text-emerald-600" icon={<Icons.TrendingUp />} onAdd={() => { setFormData({...formData, type: 'income', category: 'General'}); setShowForm(true); }} onClick={() => setActiveFilter(activeFilter === 'income' ? 'all' : 'income')} active={activeFilter === 'income'} />
+                            <SummaryCard title="Bills" amount={summary.bills} color="text-amber-600" icon={<Icons.FileText />} onAdd={() => { setFormData({...formData, type: 'bill', category: 'Housing'}); setShowForm(true); }} onClick={() => setActiveFilter(activeFilter === 'bill' ? 'all' : 'bill')} active={activeFilter === 'bill'} />
+                            <SummaryCard title="Spending" amount={summary.spending} color="text-rose-600" icon={<Icons.TrendingDown />} onAdd={() => { setFormData({...formData, type: 'spending', category: 'Food'}); setShowForm(true); }} onClick={() => setActiveFilter(activeFilter === 'spending' ? 'all' : 'spending')} active={activeFilter === 'spending'} />
+                            <SummaryCard title="Balance" amount={summary.balance} color={summary.balance >= 0 ? "text-blue-600" : "text-red-600"} icon={<Icons.CreditCard />} onClick={() => setActiveFilter('all')} active={activeFilter === 'all'} />
                             <SummaryCard title="Assets" amount={summary.assets} color="text-indigo-600" icon={<Icons.Bank />} onAdd={() => { setAssetData({ id: null, type: 'bank', name: '', value: '', weight: '', pricePerUnit: '', symbol: '' }); setShowAssetForm(true); }} />
-                            <SummaryCard title="Net Worth" amount={summary.netWorth} color="text-emerald-700" icon={<Icons.Gem />} highlight />
+                            <SummaryCard title="Net Worth" amount={summary.netWorth} color="text-emerald-700" icon={<Icons.Gem />} highlight onClick={() => setShowNetWorthModal(true)} />
                         </div>
 
                         {monthlyTransactions.length === 0 && transactions.length > 0 && (
@@ -507,22 +544,31 @@
                                 </div>
 
                                 <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
-                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Category Breakdown</h3>
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Category Budgets</h3>
+                                        <button onClick={() => setShowBudgetModal(true)} className="text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-1 rounded-lg transition-all"><Icons.Settings /></button>
+                                    </div>
                                     <div className="space-y-4">
-                                        {categoryBreakdown.length > 0 ? categoryBreakdown.map(cat => (
-                                            <div key={cat.name} className="space-y-1.5">
-                                                <div className="flex justify-between text-xs font-medium">
-                                                    <span className="text-gray-700 dark:text-gray-300 flex items-center gap-2">
-                                                        <span>{CATEGORIES[cat.name]?.icon || '📦'}</span>
-                                                        {cat.name}
-                                                    </span>
-                                                    <span className="text-gray-400">${cat.amount.toFixed(0)}</span>
+                                        {categoryBreakdown.length > 0 ? categoryBreakdown.map(cat => {
+                                            const budget = budgets[cat.name] || 0;
+                                            const isOver = budget > 0 && cat.amount > budget;
+                                            return (
+                                                <div key={cat.name} className="space-y-1.5">
+                                                    <div className="flex justify-between text-xs font-medium">
+                                                        <span className="text-gray-700 dark:text-gray-300 flex items-center gap-2">
+                                                            <span>{CATEGORIES[cat.name]?.icon || '📦'}</span>
+                                                            {cat.name}
+                                                        </span>
+                                                        <span className={isOver ? 'text-rose-500 font-bold' : 'text-gray-400'}>
+                                                            ${cat.amount.toFixed(0)} {budget > 0 && `/ $${budget}`}
+                                                        </span>
+                                                    </div>
+                                                    <div className="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full overflow-hidden">
+                                                        <div className={`h-full ${isOver ? 'bg-rose-500' : CATEGORIES[cat.name]?.color || 'bg-gray-400'} transition-all duration-700`} style={{ width: `${Math.min((cat.amount / (budget || Math.max(1, (summary.bills + summary.spending)))) * 100, 100)}%` }}></div>
+                                                    </div>
                                                 </div>
-                                                <div className="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full overflow-hidden">
-                                                    <div className={`h-full ${CATEGORIES[cat.name]?.color || 'bg-gray-400'} transition-all duration-700`} style={{ width: `${Math.min((cat.amount / Math.max(1, (summary.bills + summary.spending))) * 100, 100)}%` }}></div>
-                                                </div>
-                                            </div>
-                                        )) : <p className="text-xs text-gray-400 italic">No spending yet.</p>}
+                                            );
+                                        }) : <p className="text-xs text-gray-400 italic">No spending yet.</p>}
                                     </div>
                                 </div>
 
@@ -654,8 +700,25 @@
                                     </div>
 
                                     <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
-                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Budget Health</h3>
+                                        <div className="flex justify-between items-center mb-6">
+                                            <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Budget Health</h3>
+                                            <div className={`text-xs font-bold ${financialHealth.color} bg-current/10 px-2 py-1 rounded-lg`}>
+                                                Score: {financialHealth.score}/100
+                                            </div>
+                                        </div>
                                         <div className="space-y-6">
+                                            <div className="flex justify-center py-4">
+                                                <div className="relative w-32 h-32 flex items-center justify-center">
+                                                    <svg className="w-full h-full transform -rotate-90">
+                                                        <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" className="text-gray-100 dark:text-gray-700" />
+                                                        <circle cx="64" cy="64" r="58" stroke="currentColor" strokeWidth="8" fill="transparent" strokeDasharray={364.4} strokeDashoffset={364.4 - (364.4 * financialHealth.score / 100)} className={`${financialHealth.color} transition-all duration-1000 ease-out`} strokeLinecap="round" />
+                                                    </svg>
+                                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                                        <span className={`text-2xl font-bold ${financialHealth.color}`}>{financialHealth.score}</span>
+                                                        <span className="text-[8px] text-gray-400 uppercase font-bold">{financialHealth.label}</span>
+                                                    </div>
+                                                </div>
+                                            </div>
                                             <ProgressBar label="Income Used" value={summary.bills + summary.spending} max={summary.income} color={summary.bills + summary.spending > summary.income ? "bg-red-500" : "bg-emerald-500"} />
                                             <div className="flex justify-between items-center pt-2">
                                                 <div className="text-center">
@@ -682,7 +745,20 @@
 
                                 <div className="bg-white dark:bg-gray-800 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 overflow-hidden flex flex-col">
                                     <div className="p-6 border-b border-gray-50 dark:border-gray-700 flex flex-col md:flex-row justify-between items-center gap-4">
-                                        <h2 className="text-xl font-medium">Monthly Activity</h2>
+                                        <div className="flex items-center gap-4">
+                                            <h2 className="text-xl font-medium">Activity</h2>
+                                            <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
+                                                {['all', 'income', 'bill', 'spending'].map(f => (
+                                                    <button 
+                                                        key={f} 
+                                                        onClick={() => setActiveFilter(f)}
+                                                        className={`px-3 py-1.5 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${activeFilter === f ? 'bg-white dark:bg-gray-600 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                                                    >
+                                                        {f}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
                                         <div className="flex items-center gap-4 w-full md:w-auto">
                                             <div className="relative flex-1 md:w-64">
                                                 <input 
@@ -693,11 +769,11 @@
                                                     onChange={e => setSearchQuery(e.target.value)}
                                                 />
                                             </div>
-                                            <span className="text-xs text-gray-400 uppercase tracking-widest font-bold whitespace-nowrap">{monthlyTransactions.length} Items</span>
+                                            <span className="text-xs text-gray-400 uppercase tracking-widest font-bold whitespace-nowrap">{filteredTransactions.length} Items</span>
                                         </div>
                                     </div>
                                     <div className="divide-y divide-gray-50 dark:divide-gray-700 max-h-[600px] overflow-y-auto no-scrollbar">
-                                        {monthlyTransactions.length > 0 ? monthlyTransactions.sort((a, b) => dayjs(b.date).unix() - dayjs(a.date).unix()).map(t => (
+                                        {filteredTransactions.length > 0 ? filteredTransactions.sort((a, b) => dayjs(b.date).unix() - dayjs(a.date).unix()).map(t => (
                                             <div key={t.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
                                                 <div className="flex items-center gap-4">
                                                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${t.type === 'income' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : t.type === 'bill' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'}`}>
@@ -716,7 +792,7 @@
                                                     </div>
                                                 </div>
                                             </div>
-                                        )) : <div className="p-20 text-center text-gray-400 italic">No transactions this month.</div>}
+                                        )) : <div className="p-20 text-center text-gray-400 italic">No {activeFilter !== 'all' ? activeFilter : ''} transactions found.</div>}
                                     </div>
                                 </div>
                             </div>
@@ -802,62 +878,82 @@
                             </div>
                         )}
 
-                        {showAssetForm && (
+                        {showBudgetModal && (
                             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
                                 <div className="bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl shadow-2xl p-8 space-y-6 fade-in">
-                                    <h2 className="text-2xl font-medium tracking-tight">{assetData.id ? 'Edit Asset' : 'New Asset'}</h2>
-                                    <form onSubmit={handleAddAsset} className="space-y-4">
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Asset Type</label>
-                                            <div className="grid grid-cols-3 gap-2">
-                                                {[
-                                                    { id: 'bank', label: 'Bank', icon: <Icons.Bank /> },
-                                                    { id: 'crypto', label: 'Crypto', icon: <Icons.Coins /> },
-                                                    { id: 'metal', label: 'Metal', icon: <Icons.Gem /> }
-                                                ].map(type => (
-                                                    <button key={type.id} type="button" onClick={() => setAssetData({...assetData, type: type.id})} className={`p-2 rounded-xl text-xs capitalize border transition-all font-medium flex flex-col items-center gap-1 ${assetData.type === type.id ? 'bg-indigo-600 border-indigo-600 text-white shadow-md' : 'bg-white dark:bg-gray-700 border-gray-100 dark:border-gray-600 text-gray-600 dark:text-gray-300'}`}>
-                                                        {type.icon}
-                                                        {type.label}
-                                                    </button>
-                                                ))}
+                                    <div className="flex justify-between items-center">
+                                        <h2 className="text-2xl font-medium tracking-tight">Category Budgets</h2>
+                                        <button onClick={() => setShowBudgetModal(false)} className="text-gray-400 hover:text-gray-600"><Icons.Plus /></button>
+                                    </div>
+                                    <div className="space-y-4 max-h-[400px] overflow-y-auto pr-2 no-scrollbar">
+                                        {Object.keys(CATEGORIES).map(cat => (
+                                            <div key={cat} className="space-y-1">
+                                                <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold flex items-center gap-2">
+                                                    <span>{CATEGORIES[cat].icon}</span> {cat}
+                                                </label>
+                                                <input 
+                                                    type="number" 
+                                                    placeholder="Set monthly budget" 
+                                                    className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" 
+                                                    value={budgets[cat] || ''} 
+                                                    onChange={e => setBudgets({...budgets, [cat]: parseFloat(e.target.value) || 0})} 
+                                                />
                                             </div>
-                                        </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Asset Name</label>
-                                            <input type="text" placeholder={assetData.type === 'bank' ? 'e.g. Chase Savings' : assetData.type === 'crypto' ? 'e.g. Bitcoin' : 'e.g. Gold Bar'} required className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" value={assetData.name} onChange={e => setAssetData({...assetData, name: e.target.value})} />
-                                        </div>
-                                        
-                                        {assetData.type === 'metal' ? (
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Weight (oz)</label>
-                                                    <input type="number" step="0.001" placeholder="0.000" required className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" value={assetData.weight} onChange={e => setAssetData({...assetData, weight: e.target.value})} />
-                                                </div>
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Price per oz</label>
-                                                    <input type="number" step="0.01" placeholder="0.00" required className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" value={assetData.pricePerUnit} onChange={e => setAssetData({...assetData, pricePerUnit: e.target.value})} />
-                                                </div>
-                                            </div>
-                                        ) : (
-                                            <div className="grid grid-cols-2 gap-4">
-                                                <div className="space-y-1">
-                                                    <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Current Value</label>
-                                                    <input type="number" step="0.01" placeholder="0.00" required className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" value={assetData.value} onChange={e => setAssetData({...assetData, value: e.target.value})} />
-                                                </div>
-                                                {assetData.type === 'crypto' && (
-                                                    <div className="space-y-1">
-                                                        <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Symbol</label>
-                                                        <input type="text" placeholder="BTC" className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" value={assetData.symbol} onChange={e => setAssetData({...assetData, symbol: e.target.value})} />
-                                                    </div>
-                                                )}
-                                            </div>
-                                        )}
+                                        ))}
+                                    </div>
+                                    <button onClick={() => setShowBudgetModal(false)} className="w-full p-3 bg-emerald-600 text-white rounded-xl shadow-lg hover:bg-emerald-700 font-semibold">Save Budgets</button>
+                                </div>
+                            </div>
+                        )}
 
-                                        <div className="flex gap-3 pt-4">
-                                            <button type="button" onClick={() => setShowAssetForm(false)} className="flex-1 p-3 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl font-medium">Cancel</button>
-                                            <button type="submit" className="flex-1 p-3 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 font-semibold">{assetData.id ? 'Update' : 'Add Asset'}</button>
+                        {showNetWorthModal && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                                <div className="bg-white dark:bg-gray-800 w-full max-w-lg rounded-3xl shadow-2xl p-8 space-y-6 fade-in">
+                                    <div className="flex justify-between items-center">
+                                        <h2 className="text-2xl font-medium tracking-tight">Net Worth Breakdown</h2>
+                                        <button onClick={() => setShowNetWorthModal(false)} className="text-gray-400 hover:text-gray-600"><Icons.Plus /></button>
+                                    </div>
+                                    
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 rounded-2xl border border-emerald-100 dark:border-emerald-800">
+                                            <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest">Total Assets</p>
+                                            <p className="text-2xl font-mono font-bold text-emerald-700 dark:text-emerald-300">${summary.assets.toFixed(2)}</p>
                                         </div>
-                                    </form>
+                                        <div className="p-4 bg-blue-50 dark:bg-blue-900/20 rounded-2xl border border-blue-100 dark:border-blue-800">
+                                            <p className="text-[10px] text-blue-600 dark:text-blue-400 font-bold uppercase tracking-widest">Monthly Surplus</p>
+                                            <p className="text-2xl font-mono font-bold text-blue-700 dark:text-blue-300">${summary.balance.toFixed(2)}</p>
+                                        </div>
+                                    </div>
+
+                                    <div className="space-y-4">
+                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Asset Allocation</h3>
+                                        <div className="space-y-3">
+                                            {assets.map(a => {
+                                                const val = a.type === 'metal' ? a.weight * a.pricePerUnit : a.value;
+                                                const pct = summary.assets > 0 ? (val / summary.assets) * 100 : 0;
+                                                return (
+                                                    <div key={a.id} className="space-y-1">
+                                                        <div className="flex justify-between text-sm">
+                                                            <span className="text-gray-600 dark:text-gray-400">{a.name}</span>
+                                                            <span className="font-mono font-bold">${val.toFixed(2)} ({pct.toFixed(1)}%)</span>
+                                                        </div>
+                                                        <div className="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full overflow-hidden">
+                                                            <div className="h-full bg-indigo-500" style={{ width: `${pct}%` }}></div>
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
+                                    </div>
+
+                                    <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
+                                        <div className="flex justify-between items-center">
+                                            <span className="text-lg font-medium">Total Net Worth</span>
+                                            <span className="text-2xl font-mono font-bold text-emerald-600">${summary.netWorth.toFixed(2)}</span>
+                                        </div>
+                                    </div>
+                                    
+                                    <button onClick={() => setShowNetWorthModal(false)} className="w-full p-3 bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded-xl font-semibold hover:bg-gray-200 dark:hover:bg-gray-600">Close</button>
                                 </div>
                             </div>
                         )}
@@ -867,16 +963,26 @@
         }
 
 
-        function SummaryCard({ title, amount, color, icon, highlight, onAdd }) {
+        function SummaryCard({ title, amount, color, icon, highlight, onAdd, onClick, active }) {
             return (
-                <div className={`bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 p-6 rounded-3xl shadow-sm border flex flex-col justify-between h-32 relative group ${highlight ? 'bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border-gray-200 dark:border-gray-600' : ''}`}>
+                <div 
+                    onClick={onClick}
+                    className={`bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 p-6 rounded-3xl shadow-sm border flex flex-col justify-between h-32 relative group transition-all duration-300 ${onClick ? 'cursor-pointer' : ''} ${highlight ? 'bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border-gray-200 dark:border-gray-600' : ''} ${active ? 'ring-2 ring-emerald-500 shadow-md transform scale-[1.02]' : 'hover:shadow-md hover:scale-[1.01]'}`}
+                >
                     <div className="flex justify-between items-start">
                         <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">{title}</span>
-                        <div className="p-2 rounded-xl bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500">{icon}</div>
+                        <div className={`p-2 rounded-xl transition-colors ${active ? 'bg-emerald-500 text-white' : 'bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500'}`}>{icon}</div>
                     </div>
                     <div className="flex justify-between items-end">
                         <p className={`text-2xl font-mono tracking-tight ${color}`}>${amount.toFixed(2)}</p>
-                        {onAdd && <button onClick={onAdd} className="p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100 bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"><Icons.Plus /></button>}
+                        {onAdd && (
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); onAdd(); }} 
+                                className="p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100 bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                            >
+                                <Icons.Plus />
+                            </button>
+                        )}
                     </div>
                 </div>
             );
