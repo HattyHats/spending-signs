@@ -759,8 +759,8 @@
             }
 
             return (
-                <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'dark bg-gray-900 text-gray-100' : 'bg-slate-50 text-gray-900'}`}>
-                    <div className="p-4 md:p-8 max-w-6xl mx-auto space-y-8 fade-in">
+                <div className={`min-h-screen transition-colors duration-500 ${isDarkMode ? 'dark bg-[#0f172a] text-slate-200' : 'bg-[#f8fafc] text-slate-900'}`} style={{ backgroundImage: isDarkMode ? 'radial-gradient(circle at 50% 50%, rgba(15, 23, 42, 1) 0%, rgba(2, 6, 23, 1) 100%)' : 'radial-gradient(circle at 50% 50%, rgba(248, 250, 252, 1) 0%, rgba(241, 245, 249, 1) 100%)' }}>
+                    <div className="p-6 md:p-12 max-w-7xl mx-auto space-y-12 fade-in">
                         <header className="flex flex-col md:flex-row justify-between items-center gap-4">
                             <div className="flex items-center gap-3">
                                 <div className="p-2 bg-emerald-600 text-white rounded-xl shadow-lg shadow-emerald-100">
@@ -911,48 +911,48 @@
                             </div>
                         </header>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
                             <SummaryCard title="Income" amount={summary.income} color="text-emerald-600" icon={<Icons.TrendingUp />} onAdd={() => { setFormData({...formData, type: 'income', category: 'Salary', walletId: activeWalletId}); setShowForm(true); }} onClick={() => setActiveFilter(activeFilter === 'income' ? 'all' : 'income')} active={activeFilter === 'income'} />
                             <SummaryCard title="Bills" amount={summary.bills} color="text-amber-600" icon={<Icons.FileText />} onAdd={() => { setFormData({...formData, type: 'bill', category: 'Housing', walletId: activeWalletId}); setShowForm(true); }} onClick={() => setActiveFilter(activeFilter === 'bill' ? 'all' : 'bill')} active={activeFilter === 'bill'} />
                             <SummaryCard title="Spending" amount={summary.spending} color="text-rose-600" icon={<Icons.TrendingDown />} onAdd={() => { setFormData({...formData, type: 'spending', category: 'Food', walletId: activeWalletId}); setShowForm(true); }} onClick={() => setActiveFilter(activeFilter === 'spending' ? 'all' : 'spending')} active={activeFilter === 'spending'} />
                             <SummaryCard title="Balance" amount={summary.balance} color={summary.balance >= 0 ? "text-blue-600" : "text-red-600"} icon={<Icons.CreditCard />} onClick={() => setActiveFilter('all')} active={activeFilter === 'all'} />
-                                <SummaryCard 
-                                    title="Safe Spend" 
-                                    amount={summary.safeToSpend} 
-                                    color={summary.safeToSpend >= 0 ? "text-emerald-600" : "text-rose-600"} 
-                                    icon={<Icons.Activity />} 
-                                    onClick={() => {
-                                        const goal = prompt("Set monthly savings goal:", monthlySavingsGoal);
-                                        if (goal !== null) setMonthlySavingsGoal(parseFloat(goal) || 0);
-                                    }}
-                                    isSetting
-                                />
-                                <SummaryCard title="Paid Bills" amount={summary.paidBills} color="text-emerald-600" icon={<Icons.Check />} onClick={() => setActiveFilter(activeFilter === 'unpaid' ? 'all' : 'unpaid')} active={activeFilter === 'unpaid'} />
-                                <SummaryCard title="Assets" amount={summary.assets} color="text-indigo-600" icon={<Icons.Bank />} onAdd={() => { setAssetData({ id: null, type: 'bank', name: '', value: '', weight: '', pricePerUnit: '', symbol: '' }); setShowAssetForm(true); }} onClick={() => setShowNetWorthModal(true)} />
+                            <SummaryCard 
+                                title="Safe Spend" 
+                                amount={summary.safeToSpend} 
+                                color={summary.safeToSpend >= 0 ? "text-emerald-600" : "text-rose-600"} 
+                                icon={<Icons.Activity />} 
+                                onClick={() => {
+                                    const goal = prompt("Set monthly savings goal:", monthlySavingsGoal);
+                                    if (goal !== null) setMonthlySavingsGoal(parseFloat(goal) || 0);
+                                }}
+                                isSetting
+                            />
+                            <SummaryCard title="Paid Bills" amount={summary.paidBills} color="text-emerald-600" icon={<Icons.Check />} onClick={() => setActiveFilter(activeFilter === 'unpaid' ? 'all' : 'unpaid')} active={activeFilter === 'unpaid'} />
+                            <SummaryCard title="Assets" amount={summary.assets} color="text-indigo-600" icon={<Icons.Bank />} onAdd={() => { setAssetData({ id: null, type: 'bank', name: '', value: '', weight: '', pricePerUnit: '', symbol: '' }); setShowAssetForm(true); }} onClick={() => setShowNetWorthModal(true)} />
                             <SummaryCard title="Net Worth" amount={summary.netWorth} color="text-emerald-700" icon={<Icons.Gem />} highlight onClick={() => setShowNetWorthModal(true)} />
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <div className="bg-white dark:bg-gray-800 p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
                                 <div>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Bills Paid</p>
-                                    <p className="text-xl font-mono font-bold text-emerald-600">{summary.paidBillsCount} / {summary.totalBillsCount}</p>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Bills Paid</p>
+                                    <p className="text-2xl font-mono font-bold text-emerald-600 leading-none">{summary.paidBillsCount} / {summary.totalBillsCount}</p>
                                 </div>
                                 <div className="w-24 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
                                     <div className="h-full bg-emerald-500 transition-all duration-700" style={{ width: `${summary.totalBillsCount > 0 ? (summary.paidBillsCount / summary.totalBillsCount) * 100 : 0}%` }}></div>
                                 </div>
                             </div>
-                            <div className="bg-white dark:bg-gray-800 p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
                                 <div>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Avg. Monthly Income</p>
-                                    <p className="text-xl font-mono font-bold text-blue-600">${averages.avgInc.toFixed(0)}</p>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Avg. Monthly Income</p>
+                                    <p className="text-2xl font-mono font-bold text-blue-600 leading-none">${averages.avgInc.toFixed(0)}</p>
                                 </div>
                                 <Icons.TrendingUp />
                             </div>
-                            <div className="bg-white dark:bg-gray-800 p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                            <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
                                 <div>
-                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Avg. Monthly Expenses</p>
-                                    <p className="text-xl font-mono font-bold text-rose-600">${averages.avgExp.toFixed(0)}</p>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Avg. Monthly Expenses</p>
+                                    <p className="text-2xl font-mono font-bold text-rose-600 leading-none">${averages.avgExp.toFixed(0)}</p>
                                 </div>
                                 <Icons.TrendingDown />
                             </div>
@@ -968,7 +968,7 @@
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
                             {/* Sidebar */}
                             <div className="lg:col-span-3 space-y-6">
                                 <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 space-y-4">
@@ -1115,15 +1115,20 @@
                                 </div>
 
                                 <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
-                                    <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Financial Insights</h3>
+                                    <div className="flex items-center gap-3 mb-6">
+                                        <div className="p-2.5 bg-emerald-50 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400 rounded-2xl">
+                                            <Icons.Lightbulb />
+                                        </div>
+                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Financial Insights</h3>
+                                    </div>
                                     <div className="space-y-4">
                                         <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-2xl">
                                             <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold uppercase tracking-widest mb-2">Did you know?</p>
                                             <p className="text-xs text-emerald-800 dark:text-emerald-200 leading-relaxed italic">"{randomFact}"</p>
                                         </div>
                                         {insights.map((insight, i) => (
-                                            <div key={i} className="flex gap-3 p-3 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700">
-                                                <span className="text-emerald-600 dark:text-emerald-400"><Icons.Lightbulb /></span>
+                                            <div key={i} className="flex gap-3 p-4 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700 group hover:border-emerald-200 dark:hover:border-emerald-800 transition-colors">
+                                                <span className="text-emerald-600 dark:text-emerald-400 shrink-0"><Icons.Lightbulb /></span>
                                                 <p className="text-xs text-gray-600 dark:text-gray-400 leading-relaxed">{insight.text}</p>
                                             </div>
                                         ))}
@@ -1271,46 +1276,46 @@
                                             <span className="text-xs text-gray-400 uppercase tracking-widest font-bold whitespace-nowrap">{filteredTransactions.length} Items</span>
                                         </div>
                                     </div>
-                                    <div className="divide-y divide-gray-50 dark:divide-gray-700 max-h-[600px] overflow-y-auto no-scrollbar">
+                                    <div className="divide-y divide-gray-50 dark:divide-gray-700 max-h-[800px] overflow-y-auto no-scrollbar">
                                         {filteredTransactions.length > 0 ? filteredTransactions.sort((a, b) => dayjs(b.date).unix() - dayjs(a.date).unix()).map(t => (
-                                            <div key={t.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
-                                                <div className="flex items-center gap-4">
-                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${t.type === 'income' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : t.type === 'bill' ? (t.isPaid ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-600') : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'}`}>
+                                            <div key={t.id} className="p-5 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-all group border-b border-gray-50 dark:border-gray-700 last:border-0">
+                                                <div className="flex items-center gap-5">
+                                                    <div className={`w-12 h-12 rounded-2xl flex items-center justify-center text-xl shadow-sm ${t.type === 'income' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : t.type === 'bill' ? (t.isPaid ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-600') : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'}`}>
                                                         {t.type === 'income' ? '💰' : CATEGORIES[t.category]?.icon || '💸'}
                                                     </div>
                                                     <div>
-                                                        <div className="flex items-center gap-2">
-                                                            <p className="font-medium text-sm">{t.description}</p>
-                                                            {t.isRecurring && <span className="text-[8px] bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-bold uppercase">Recurring</span>}
+                                                        <div className="flex items-center gap-2 mb-1">
+                                                            <p className="font-bold text-gray-900 dark:text-white tracking-tight">{t.description}</p>
+                                                            {t.isRecurring && <span className="text-[8px] bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-2 py-0.5 rounded-full font-bold uppercase tracking-widest">Auto</span>}
                                                             {t.type === 'bill' && (
                                                                 <button 
                                                                     onClick={(e) => {
                                                                         e.stopPropagation();
                                                                         setTransactions(transactions.map(x => x.id === t.id ? {...x, isPaid: !x.isPaid, datePaid: !x.isPaid ? dayjs().format('YYYY-MM-DD') : ''} : x));
                                                                     }}
-                                                                    className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase transition-all ${t.isPaid ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600 animate-pulse'}`}
+                                                                    className={`text-[8px] px-2 py-0.5 rounded-full font-bold uppercase transition-all tracking-widest ${t.isPaid ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600 animate-pulse'}`}
                                                                 >
                                                                     {t.isPaid ? 'Paid' : 'Unpaid'}
                                                                 </button>
                                                             )}
                                                         </div>
-                                                        <div className="flex items-center gap-2 mt-0.5">
-                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-md text-white font-bold ${CATEGORIES[t.category]?.color || 'bg-gray-400'}`}>{t.category}</span>
-                                                            <p className="text-[10px] text-gray-400 font-medium">{dayjs(t.date).format('MMM DD')}</p>
-                                                            {t.isPaid && t.datePaid && <p className="text-[10px] text-emerald-500 font-medium">Paid on {dayjs(t.datePaid).format('MMM DD')}</p>}
-                                                            {t.type === 'bill' && !t.isPaid && dayjs().isAfter(dayjs(t.date)) && <span className="text-[8px] text-rose-500 font-bold uppercase">Overdue</span>}
+                                                        <div className="flex items-center gap-3 text-[10px] text-gray-400 font-bold uppercase tracking-wider">
+                                                            <span className={`px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400`}>{t.category}</span>
+                                                            <span>{dayjs(t.date).format('MMM DD')}</span>
+                                                            {t.isPaid && t.datePaid && <span className="text-emerald-500">Paid {dayjs(t.datePaid).format('MMM DD')}</span>}
+                                                            {t.type === 'bill' && !t.isPaid && dayjs().isAfter(dayjs(t.date)) && <span className="text-rose-500">Overdue</span>}
                                                         </div>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <p className={`font-mono font-medium ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-gray-100'}`}>{t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}</p>
-                                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-all">
-                                                        <button onClick={() => handleEdit(t)} className="text-gray-300 hover:text-blue-500 p-2"><Icons.Settings /></button>
-                                                        <button onClick={() => { if(confirm("Delete?")) setTransactions(transactions.filter(x => x.id !== t.id)) }} className="text-gray-300 hover:text-rose-500 p-2"><Icons.Trash /></button>
+                                                <div className="flex items-center gap-4">
+                                                    <p className={`text-xl font-mono font-bold tracking-tighter ${t.type === 'income' ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-900 dark:text-gray-100'}`}>{t.type === 'income' ? '+' : '-'}${t.amount.toFixed(2)}</p>
+                                                    <div className="flex items-center opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                                                        <button onClick={() => handleEdit(t)} className="text-gray-300 hover:text-blue-500 p-2 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-xl transition-all"><Icons.Settings /></button>
+                                                        <button onClick={() => { if(confirm("Delete?")) setTransactions(transactions.filter(x => x.id !== t.id)) }} className="text-gray-300 hover:text-rose-500 p-2 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-xl transition-all"><Icons.Trash /></button>
                                                     </div>
                                                 </div>
                                             </div>
-                                        )) : <div className="p-20 text-center text-gray-400 italic">No {activeFilter !== 'all' ? activeFilter : ''} transactions found.</div>}
+                                        )) : <div className="p-24 text-center text-gray-400 italic font-medium">No {activeFilter !== 'all' ? activeFilter : ''} transactions found.</div>}
                                     </div>
                                 </div>
                             </div>
@@ -1675,20 +1680,20 @@
             return (
                 <div 
                     onClick={onClick}
-                    className={`bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 p-6 rounded-3xl shadow-sm border flex flex-col justify-between h-32 relative group transition-all duration-300 ${onClick ? 'cursor-pointer' : ''} ${highlight ? 'bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border-gray-200 dark:border-gray-600' : ''} ${active ? 'ring-2 ring-emerald-500 shadow-md transform scale-[1.02]' : 'hover:shadow-md hover:scale-[1.01]'}`}
+                    className={`bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 p-6 rounded-[2rem] shadow-sm border flex flex-col justify-between h-40 relative group transition-all duration-300 ${onClick ? 'cursor-pointer' : ''} ${highlight ? 'bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border-gray-200 dark:border-gray-600' : ''} ${active ? 'ring-2 ring-emerald-500 shadow-md transform scale-[1.02]' : 'hover:shadow-md hover:scale-[1.01]'}`}
                 >
                     <div className="flex justify-between items-start">
-                        <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">{title}</span>
-                        <div className={`p-2 rounded-xl transition-colors ${active ? 'bg-emerald-500 text-white' : 'bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500'}`}>
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">{title}</span>
+                        <div className={`p-2.5 rounded-2xl transition-colors ${active ? 'bg-emerald-500 text-white' : 'bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500'}`}>
                             {isSetting ? <Icons.Settings /> : icon}
                         </div>
                     </div>
                     <div className="flex justify-between items-end">
-                        <p className={`text-2xl font-mono tracking-tight ${color}`}>${amount.toFixed(2)}</p>
+                        <p className={`text-3xl font-mono font-bold tracking-tighter ${color}`}>${amount.toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2})}</p>
                         {onAdd && (
                             <button 
                                 onClick={(e) => { e.stopPropagation(); onAdd(); }} 
-                                className="p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100 bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                                className="p-2 rounded-xl transition-all opacity-0 group-hover:opacity-100 bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
                             >
                                 <Icons.Plus />
                             </button>
@@ -1730,13 +1735,13 @@
         function ProgressBar({ label, value, max, color }) {
             const percentage = max > 0 ? Math.min((value / max) * 100, 100) : 0;
             return (
-                <div className="space-y-2">
-                    <div className="flex justify-between text-[10px] font-bold uppercase tracking-wider text-gray-500">
-                        <span>{label}</span>
-                        <span>${value.toLocaleString(undefined, {minimumFractionDigits: 2})}</span>
+                <div className="space-y-2.5">
+                    <div className="flex justify-between items-end">
+                        <span className="text-[10px] font-bold uppercase tracking-[0.15em] text-gray-400">{label}</span>
+                        <span className={`text-xs font-mono font-bold ${color.replace('bg-', 'text-')}`}>${value.toLocaleString(undefined, {minimumFractionDigits: 0, maximumFractionDigits: 0})}</span>
                     </div>
-                    <div className="w-full bg-gray-100 dark:bg-gray-700 h-1.5 rounded-full overflow-hidden">
-                        <div className={`h-full ${color} transition-all duration-700 ease-out`} style={{ width: `${percentage}%` }}></div>
+                    <div className="w-full bg-gray-100 dark:bg-gray-700/50 h-2 rounded-full overflow-hidden shadow-inner">
+                        <div className={`h-full ${color} transition-all duration-1000 ease-out shadow-sm`} style={{ width: `${percentage}%` }}></div>
                     </div>
                 </div>
             );
