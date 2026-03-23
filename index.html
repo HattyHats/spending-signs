@@ -340,9 +340,8 @@
                     const base64Data = await base64Promise;
 
                     const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
-                    const model = genAI.models.get({ model: "gemini-3-flash-preview" }); // Using latest flash model
 
-                    const prompt = `Analyze this bank statement or receipt image and extract all transactions. 
+                    const prompt = `Analyze this bank statement or receipt (image or PDF) and extract all transactions. 
                     Return ONLY a JSON array of objects with the following keys: 
                     'date' (string in YYYY-MM-DD format), 
                     'description' (string), 
@@ -352,10 +351,11 @@
                     
                     Available categories: ${Object.keys(CATEGORIES).join(', ')}.
                     If unsure about the category, use 'General'.
-                    If the image is not a bank statement or receipt, return an empty array [].
+                    If the document is not a bank statement or receipt, return an empty array [].
                     Do not include any markdown formatting or extra text, just the JSON array.`;
 
-                    const result = await model.generateContent({
+                    const result = await genAI.models.generateContent({
+                        model: "gemini-3-flash-preview",
                         contents: [{
                             parts: [
                                 { text: prompt },
@@ -476,7 +476,14 @@
             }, [summary, assets, savingsGoals]);
 
             const exportData = () => {
-                const data = { transactions, savingsGoals, version: '2.0', exportDate: new Date().toISOString() };
+                const data = { 
+                    transactions, 
+                    savingsGoals, 
+                    assets, 
+                    budgets, 
+                    version: '2.1', 
+                    exportDate: new Date().toISOString() 
+                };
                 const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
                 const url = URL.createObjectURL(blob);
                 const a = document.createElement('a');
@@ -492,10 +499,12 @@
                 reader.onload = (event) => {
                     try {
                         const data = JSON.parse(event.target.result);
-                        if (data.transactions) {
+                        if (data.transactions || data.assets) {
                             if (confirm("This will merge the imported data with your current data. Continue?")) {
-                                setTransactions([...data.transactions, ...transactions]);
+                                if (data.transactions) setTransactions([...data.transactions, ...transactions]);
                                 if (data.savingsGoals) setSavingsGoals([...data.savingsGoals, ...savingsGoals]);
+                                if (data.assets) setAssets([...data.assets, ...assets]);
+                                if (data.budgets) setBudgets({ ...budgets, ...data.budgets });
                                 alert("Data imported successfully!");
                             }
                         } else {
@@ -656,7 +665,7 @@
                                     <div className="relative">
                                         <input 
                                             type="file" 
-                                            accept="image/*" 
+                                            accept="image/*,application/pdf" 
                                             onChange={(e) => processImageWithAI(e.target.files[0])}
                                             className="hidden" 
                                             id="ai-upload"
@@ -673,7 +682,7 @@
                                                 </span>
                                             ) : (
                                                 <>
-                                                    <Icons.Upload /> AI Scan Receipt
+                                                    <Icons.Upload /> AI Scan Receipt/PDF
                                                 </>
                                             )}
                                         </label>
