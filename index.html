@@ -17,7 +17,13 @@
     <!-- Day.js for Date Management -->
     <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/dayjs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/isBetween.js"></script>
-    <script>dayjs.extend(window.dayjs_plugin_isBetween)</script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.10/plugin/customParseFormat.js"></script>
+    <script>
+        dayjs.extend(window.dayjs_plugin_isBetween);
+        dayjs.extend(window.dayjs_plugin_customParseFormat);
+    </script>
+    <!-- Recharts for Data Visualization -->
+    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
     
 
     <style>
@@ -134,16 +140,32 @@
         const { useState, useEffect, useMemo } = React;
         const STORAGE_KEY = 'spendwise_v2_data';
 
+        const CATEGORIES_BY_TYPE = {
+            income: ['Salary', 'Side Hustle', 'Freelance', 'Investment', 'Gift', 'Other'],
+            bill: ['Rent', 'Housing', 'Utilities', 'Insurance', 'Subscription', 'Debt', 'Other'],
+            spending: ['Food', 'Transport', 'Entertainment', 'Shopping', 'Health', 'Other']
+        };
+
         const CATEGORIES = {
             Housing: { color: 'bg-blue-500', icon: '🏠' },
+            Rent: { color: 'bg-indigo-600', icon: '🔑' },
+            Utilities: { color: 'bg-cyan-500', icon: '⚡' },
             Food: { color: 'bg-orange-500', icon: '🍔' },
             Transport: { color: 'bg-purple-500', icon: '🚗' },
             Entertainment: { color: 'bg-pink-500', icon: '🎮' },
             Shopping: { color: 'bg-yellow-500', icon: '🛍️' },
             Health: { color: 'bg-red-500', icon: '🏥' },
-            Utilities: { color: 'bg-cyan-500', icon: '⚡' },
+            Subscriptions: { color: 'bg-slate-600', icon: '📺' },
+            Salary: { color: 'bg-emerald-500', icon: '💵' },
+            'Side Hustle': { color: 'bg-teal-500', icon: '🚀' },
             General: { color: 'bg-gray-500', icon: '📦' }
         };
+
+        // Destructure Recharts components
+        const { 
+            ResponsiveContainer, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, 
+            PieChart, Pie, Cell, LineChart, Line, AreaChart, Area 
+        } = window.Recharts;
 
         // Custom SVG Icons
         const Icons = {
@@ -154,6 +176,7 @@
             Upload: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v4"/><polyline points="17 8 12 3 7 8"/><line x1="12" x2="12" y1="3" y2="15"/></svg>,
             ChevronLeft: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m15 18-6-6 6-6"/></svg>,
             ChevronRight: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m9 18 6-6-6-6"/></svg>,
+            ChevronDown: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="m6 9 6 6 6-6"/></svg>,
             TrendingUp: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>,
             TrendingDown: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>,
             FileText: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" x2="8" y1="13" y2="13"/><line x1="16" x2="8" y1="17" y2="17"/><line x1="10" x2="8" y1="9" y2="9"/></svg>,
@@ -164,7 +187,13 @@
             Coins: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="8" cy="8" r="6"/><path d="M18.09 10.37A6 6 0 1 1 10.34 18"/><path d="M7 6h1v4"/><path d="m16.71 13.88.7.71-2.82 2.82"/></svg>,
             Gem: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 3h12l4 6-10 12L2 9Z"/><path d="M11 3 8 9l3 12"/><path d="M13 3l3 6-3 12"/><path d="M2 9h20"/></svg>,
             Lightbulb: () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 14c.2-1 .7-1.7 1.5-2.5 1-.9 1.5-2.2 1.5-3.5A5 5 0 0 0 8 8c0 1.3.5 2.6 1.5 3.5.8.8 1.3 1.5 1.5 2.5"/><path d="M9 18h6"/><path d="M10 22h4"/></svg>,
-            ExternalLink: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>
+            ExternalLink: () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" x2="21" y1="14" y2="3"/></svg>,
+            Check: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>,
+            Alert: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" x2="12" y1="8" y2="12"/><line x1="12" x2="12.01" y1="16" y2="16"/></svg>,
+            Calendar: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="18" x="3" y="4" rx="2" ry="2"/><line x1="16" x2="16" y1="2" y2="6"/><line x1="8" x2="8" y1="2" y2="6"/><line x1="3" x2="21" y1="10" y2="10"/></svg>,
+            Briefcase: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="14" x="2" y="7" rx="2" ry="2"/><path d="M16 21V5a2 2 0 0 0-2-2h-4a2 2 0 0 0-2 2v16"/></svg>,
+            User: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>,
+            Activity: () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         };
 
         const SAVING_FACTS = [
@@ -184,17 +213,25 @@
             const [savingsGoals, setSavingsGoals] = useState([]);
             const [assets, setAssets] = useState([]);
             const [budgets, setBudgets] = useState({});
+            const [wallets, setWallets] = useState([{ id: 'personal', name: 'Personal', icon: 'User' }, { id: 'business', name: 'Business', icon: 'Briefcase' }]);
+            const [activeWalletId, setActiveWalletId] = useState('personal');
+            const [debts, setDebts] = useState([]);
+            const [monthlySavingsGoal, setMonthlySavingsGoal] = useState(0);
             const [currentMonth, setCurrentMonth] = useState(new Date());
             const [showForm, setShowForm] = useState(false);
             const [showGoalForm, setShowGoalForm] = useState(false);
             const [showAssetForm, setShowAssetForm] = useState(false);
+            const [showDebtForm, setShowDebtForm] = useState(false);
             const [showBudgetModal, setShowBudgetModal] = useState(false);
             const [showNetWorthModal, setShowNetWorthModal] = useState(false);
             const [showToolsDropdown, setShowToolsDropdown] = useState(false);
             const [showLinksDropdown, setShowLinksDropdown] = useState(false);
+            const [showMonthPicker, setShowMonthPicker] = useState(false);
             const [activeFilter, setActiveFilter] = useState('all');
             const [searchQuery, setSearchQuery] = useState('');
             const [isDarkMode, setIsDarkMode] = useState(false);
+            const [showWalletModal, setShowWalletModal] = useState(false);
+            const [walletData, setWalletData] = useState({ id: null, name: '', icon: 'User' });
             const [randomFact] = useState(() => SAVING_FACTS[Math.floor(Math.random() * SAVING_FACTS.length)]);
             const [formData, setFormData] = useState({
                 id: null,
@@ -203,7 +240,10 @@
                 type: 'spending',
                 category: 'General',
                 date: dayjs().format('YYYY-MM-DD'),
-                isRecurring: false
+                isRecurring: false,
+                isPaid: false,
+                datePaid: '',
+                walletId: 'personal'
             });
             const [goalData, setGoalData] = useState({ name: '', target: '', current: '' });
             const [assetData, setAssetData] = useState({ 
@@ -215,6 +255,33 @@
                 pricePerUnit: '',
                 symbol: '' 
             });
+            const [debtData, setDebtData] = useState({
+                id: null,
+                name: '',
+                balance: '',
+                minPayment: '',
+                interestRate: '',
+                projectedPayoff: ''
+            });
+
+            useEffect(() => {
+                const handleKeyDown = (e) => {
+                    if (e.key === '+' || (e.key === 'n' && (e.ctrlKey || e.metaKey))) {
+                        e.preventDefault();
+                        setShowForm(true);
+                    }
+                    if (e.key === 'Escape') {
+                        setShowForm(false);
+                        setShowGoalForm(false);
+                        setShowAssetForm(false);
+                        setShowDebtForm(false);
+                        setShowBudgetModal(false);
+                        setShowNetWorthModal(false);
+                    }
+                };
+                window.addEventListener('keydown', handleKeyDown);
+                return () => window.removeEventListener('keydown', handleKeyDown);
+            }, []);
 
             useEffect(() => {
                 const timer = setTimeout(() => {
@@ -228,7 +295,11 @@
                 const savedGoals = localStorage.getItem(STORAGE_KEY + '_goals');
                 const savedAssets = localStorage.getItem(STORAGE_KEY + '_assets');
                 const savedBudgets = localStorage.getItem(STORAGE_KEY + '_budgets');
+                const savedWallets = localStorage.getItem(STORAGE_KEY + '_wallets');
+                const savedDebts = localStorage.getItem(STORAGE_KEY + '_debts');
+                const savedSavingsGoal = localStorage.getItem(STORAGE_KEY + '_monthly_savings_goal');
                 const savedDark = localStorage.getItem(STORAGE_KEY + '_dark');
+                
                 if (savedData) {
                     try { setTransactions(JSON.parse(savedData)); } catch(e) { console.error(e); }
                 }
@@ -240,6 +311,15 @@
                 }
                 if (savedBudgets) {
                     try { setBudgets(JSON.parse(savedBudgets)); } catch(e) { console.error(e); }
+                }
+                if (savedWallets) {
+                    try { setWallets(JSON.parse(savedWallets)); } catch(e) { console.error(e); }
+                }
+                if (savedDebts) {
+                    try { setDebts(JSON.parse(savedDebts)); } catch(e) { console.error(e); }
+                }
+                if (savedSavingsGoal) {
+                    setMonthlySavingsGoal(parseFloat(savedSavingsGoal) || 0);
                 }
                 if (savedDark !== null) {
                     setIsDarkMode(savedDark === 'true');
@@ -254,6 +334,9 @@
                 localStorage.setItem(STORAGE_KEY + '_goals', JSON.stringify(savingsGoals));
                 localStorage.setItem(STORAGE_KEY + '_assets', JSON.stringify(assets));
                 localStorage.setItem(STORAGE_KEY + '_budgets', JSON.stringify(budgets));
+                localStorage.setItem(STORAGE_KEY + '_wallets', JSON.stringify(wallets));
+                localStorage.setItem(STORAGE_KEY + '_debts', JSON.stringify(debts));
+                localStorage.setItem(STORAGE_KEY + '_monthly_savings_goal', monthlySavingsGoal.toString());
                 localStorage.setItem(STORAGE_KEY + '_dark', isDarkMode.toString());
                 
                 if (isDarkMode) {
@@ -261,7 +344,7 @@
                 } else {
                     document.body.style.backgroundColor = '#f8fafc';
                 }
-            }, [transactions, savingsGoals, assets, budgets, isDarkMode]);
+            }, [transactions, savingsGoals, assets, budgets, wallets, debts, monthlySavingsGoal, isDarkMode]);
 
             const monthlyTransactions = useMemo(() => {
                 const start = dayjs(currentMonth).startOf('month');
@@ -269,10 +352,11 @@
                 return transactions.filter(t => {
                     const d = dayjs(t.date);
                     const matchesMonth = d.isBetween(start, end, null, '[]');
+                    const matchesWallet = t.walletId === activeWalletId || !t.walletId; // Support legacy data
                     
                     // Smart Search Logic
                     const query = searchQuery.toLowerCase().trim();
-                    if (!query) return matchesMonth;
+                    if (!query) return matchesMonth && matchesWallet;
 
                     // Check for amount filters like ">100" or "<50"
                     if (query.startsWith('>') || query.startsWith('<')) {
@@ -280,25 +364,28 @@
                         const value = parseFloat(query.slice(1));
                         if (!isNaN(value)) {
                             const matchesAmount = operator === '>' ? t.amount > value : t.amount < value;
-                            return matchesMonth && matchesAmount;
+                            return matchesMonth && matchesWallet && matchesAmount;
                         }
                     }
 
                     // Check for category filter like "cat:food"
                     if (query.startsWith('cat:')) {
                         const catQuery = query.slice(4);
-                        return matchesMonth && t.category?.toLowerCase().includes(catQuery);
+                        return matchesMonth && matchesWallet && t.category?.toLowerCase().includes(catQuery);
                     }
 
                     const matchesSearch = t.description.toLowerCase().includes(query) || 
                                          (t.category && t.category.toLowerCase().includes(query));
-                    return matchesMonth && matchesSearch;
+                    return matchesMonth && matchesWallet && matchesSearch;
                 });
-            }, [transactions, currentMonth, searchQuery]);
+            }, [transactions, currentMonth, searchQuery, activeWalletId]);
 
             const filteredTransactions = useMemo(() => {
-                if (activeFilter === 'all') return monthlyTransactions;
-                return monthlyTransactions.filter(t => t.type === activeFilter);
+                let filtered = monthlyTransactions;
+                if (activeFilter === 'unpaid') return filtered.filter(t => t.type === 'bill' && !t.isPaid);
+                if (activeFilter === 'recurring') return filtered.filter(t => t.isRecurring);
+                if (activeFilter !== 'all') return filtered.filter(t => t.type === activeFilter);
+                return filtered;
             }, [monthlyTransactions, activeFilter]);
 
             const summary = useMemo(() => {
@@ -306,20 +393,47 @@
                 const bills = monthlyTransactions.filter(t => t.type === 'bill').reduce((s, t) => s + t.amount, 0);
                 const spending = monthlyTransactions.filter(t => t.type === 'spending').reduce((s, t) => s + t.amount, 0);
                 
+                const paidBills = monthlyTransactions.filter(t => t.type === 'bill' && t.isPaid).reduce((s, t) => s + t.amount, 0);
+                const totalBillsCount = monthlyTransactions.filter(t => t.type === 'bill').length;
+                const paidBillsCount = monthlyTransactions.filter(t => t.type === 'bill' && t.isPaid).length;
+
                 const assetTotal = assets.reduce((sum, a) => {
                     if (a.type === 'metal') return sum + (parseFloat(a.weight || 0) * parseFloat(a.pricePerUnit || 0));
                     return sum + parseFloat(a.value || 0);
                 }, 0);
 
+                const balance = income - bills - spending;
+                const safeToSpend = balance - monthlySavingsGoal;
+
                 return { 
                     income, 
                     bills, 
                     spending, 
-                    balance: income - bills - spending,
+                    balance,
+                    safeToSpend,
+                    paidBills,
+                    totalBillsCount,
+                    paidBillsCount,
                     assets: assetTotal,
-                    netWorth: assetTotal + (income - bills - spending) // Simplified net worth for current month
+                    netWorth: assetTotal + balance
                 };
-            }, [monthlyTransactions, assets]);
+            }, [monthlyTransactions, assets, monthlySavingsGoal]);
+
+            const averages = useMemo(() => {
+                const last3Months = [];
+                for (let i = 1; i <= 3; i++) {
+                    const m = dayjs().subtract(i, 'month');
+                    const start = m.startOf('month');
+                    const end = m.endOf('month');
+                    const mTrans = transactions.filter(t => dayjs(t.date).isBetween(start, end, null, '[]') && (t.walletId === activeWalletId || !t.walletId));
+                    const inc = mTrans.filter(t => t.type === 'income').reduce((s, t) => s + t.amount, 0);
+                    const exp = mTrans.filter(t => t.type !== 'income').reduce((s, t) => s + t.amount, 0);
+                    last3Months.push({ inc, exp });
+                }
+                const avgInc = last3Months.reduce((s, m) => s + m.inc, 0) / 3;
+                const avgExp = last3Months.reduce((s, m) => s + m.exp, 0) / 3;
+                return { avgInc, avgExp };
+            }, [transactions, activeWalletId]);
 
             const categoryBreakdown = useMemo(() => {
                 const spending = monthlyTransactions.filter(t => t.type !== 'income');
@@ -588,6 +702,37 @@
                 doc.save(`SpendWise_${dayjs(currentMonth).format('YYYY_MM')}.pdf`);
             };
 
+            const postRecurringTransactions = () => {
+                const recurring = transactions.filter(t => t.isRecurring);
+                const newTransactions = [];
+                
+                recurring.forEach(t => {
+                    const alreadyExists = transactions.some(existing => 
+                        existing.isRecurring && 
+                        existing.name === t.name && 
+                        existing.amount === t.amount &&
+                        dayjs(existing.date).format('YYYY-MM') === dayjs(currentMonth).format('YYYY-MM')
+                    );
+
+                    if (!alreadyExists) {
+                        newTransactions.push({
+                            ...t,
+                            id: Date.now().toString() + Math.random(),
+                            date: dayjs(currentMonth).date(dayjs(t.date).date()).toISOString(),
+                            isPaid: false,
+                            datePaid: null
+                        });
+                    }
+                });
+
+                if (newTransactions.length > 0) {
+                    setTransactions([...transactions, ...newTransactions]);
+                    alert(`Posted ${newTransactions.length} recurring transactions for ${dayjs(currentMonth).format('MMMM YYYY')}`);
+                } else {
+                    alert('All recurring transactions are already posted for this month.');
+                }
+            };
+
             const copyPrev = () => {
                 const prevMonth = dayjs(currentMonth).subtract(1, 'month');
                 const start = prevMonth.startOf('month');
@@ -674,6 +819,11 @@
                                     {showToolsDropdown && (
                                         <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-gray-800 rounded-2xl shadow-xl border border-gray-100 dark:border-gray-700 z-50 overflow-hidden fade-in">
                                             <div className="p-2 space-y-1">
+                                                <button onClick={() => { setShowWalletModal(true); setShowToolsDropdown(false); }} className="w-full flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-all text-sm font-medium text-gray-700 dark:text-gray-300">
+                                                    <span>Manage Wallets</span>
+                                                    <Icons.Wallet />
+                                                </button>
+                                                <div className="h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
                                                 <button onClick={() => { exportData(); setShowToolsDropdown(false); }} className="w-full flex items-center justify-between p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-all text-sm font-medium text-gray-700 dark:text-gray-300">
                                                     <span>Export Backup</span>
                                                     <Icons.Download />
@@ -704,37 +854,111 @@
                                     <div className={`w-2 h-2 rounded-full ${budgetStatus.dot}`}></div>
                                     {budgetStatus.label}
                                 </div>
-                                <div className="flex items-center gap-4 bg-white dark:bg-gray-800 p-2 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                <div className="flex items-center gap-4 bg-white dark:bg-gray-800 p-2 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 relative">
                                     <button onClick={() => setCurrentMonth(dayjs(currentMonth).subtract(1, 'month').toDate())} className="p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-colors"><Icons.ChevronLeft /></button>
-                                    <span className="font-medium min-w-[140px] text-center">{dayjs(currentMonth).format('MMMM YYYY')}</span>
+                                    <button 
+                                        onClick={() => setShowMonthPicker(!showMonthPicker)}
+                                        className="font-medium min-w-[140px] text-center hover:bg-gray-50 dark:hover:bg-gray-700 px-4 py-2 rounded-xl transition-all flex items-center justify-center gap-2"
+                                    >
+                                        {dayjs(currentMonth).format('MMMM YYYY')}
+                                        <Icons.ChevronDown />
+                                    </button>
                                     <button onClick={() => setCurrentMonth(dayjs(currentMonth).add(1, 'month').toDate())} className="p-2 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl transition-colors"><Icons.ChevronRight /></button>
+                                    
+                                    {showMonthPicker && (
+                                        <div className="absolute top-full left-0 right-0 mt-2 bg-white dark:bg-gray-800 rounded-2xl shadow-2xl border border-gray-100 dark:border-gray-700 z-50 p-4 grid grid-cols-3 gap-2 fade-in">
+                                            {Array.from({ length: 12 }).map((_, i) => {
+                                                const m = dayjs().month(i);
+                                                const isActive = dayjs(currentMonth).month() === i;
+                                                return (
+                                                    <button 
+                                                        key={i}
+                                                        onClick={() => {
+                                                            setCurrentMonth(dayjs(currentMonth).month(i).toDate());
+                                                            setShowMonthPicker(false);
+                                                        }}
+                                                        className={`p-2 rounded-xl text-xs font-bold uppercase transition-all ${isActive ? 'bg-emerald-600 text-white' : 'hover:bg-gray-50 dark:hover:bg-gray-700 text-gray-500'}`}
+                                                    >
+                                                        {m.format('MMM')}
+                                                    </button>
+                                                );
+                                            })}
+                                            <div className="col-span-3 h-px bg-gray-100 dark:bg-gray-700 my-1"></div>
+                                            <div className="col-span-3 flex justify-between items-center px-2">
+                                                <button onClick={() => setCurrentMonth(dayjs(currentMonth).subtract(1, 'year').toDate())} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><Icons.ChevronLeft /></button>
+                                                <span className="text-sm font-bold">{dayjs(currentMonth).format('YYYY')}</span>
+                                                <button onClick={() => setCurrentMonth(dayjs(currentMonth).add(1, 'year').toDate())} className="p-1 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"><Icons.ChevronRight /></button>
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                                <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-2xl">
+                                    {wallets.map(w => (
+                                        <button 
+                                            key={w.id}
+                                            onClick={() => setActiveWalletId(w.id)}
+                                            className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold uppercase tracking-wider transition-all ${activeWalletId === w.id ? 'bg-white dark:bg-gray-600 shadow-sm text-emerald-600 dark:text-emerald-400' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-200'}`}
+                                        >
+                                            <span className="text-lg">{w.icon === 'User' ? '👤' : '💼'}</span>
+                                            <span className="hidden lg:inline">{w.name}</span>
+                                        </button>
+                                    ))}
                                 </div>
                             </div>
                         </header>
 
-                        <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-4">
-                            <SummaryCard title="Income" amount={summary.income} color="text-emerald-600" icon={<Icons.TrendingUp />} onAdd={() => { setFormData({...formData, type: 'income', category: 'General'}); setShowForm(true); }} onClick={() => setActiveFilter(activeFilter === 'income' ? 'all' : 'income')} active={activeFilter === 'income'} />
-                            <SummaryCard title="Bills" amount={summary.bills} color="text-amber-600" icon={<Icons.FileText />} onAdd={() => { setFormData({...formData, type: 'bill', category: 'Housing'}); setShowForm(true); }} onClick={() => setActiveFilter(activeFilter === 'bill' ? 'all' : 'bill')} active={activeFilter === 'bill'} />
-                            <SummaryCard title="Spending" amount={summary.spending} color="text-rose-600" icon={<Icons.TrendingDown />} onAdd={() => { setFormData({...formData, type: 'spending', category: 'Food'}); setShowForm(true); }} onClick={() => setActiveFilter(activeFilter === 'spending' ? 'all' : 'spending')} active={activeFilter === 'spending'} />
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-8 gap-4">
+                            <SummaryCard title="Income" amount={summary.income} color="text-emerald-600" icon={<Icons.TrendingUp />} onAdd={() => { setFormData({...formData, type: 'income', category: 'Salary', walletId: activeWalletId}); setShowForm(true); }} onClick={() => setActiveFilter(activeFilter === 'income' ? 'all' : 'income')} active={activeFilter === 'income'} />
+                            <SummaryCard title="Bills" amount={summary.bills} color="text-amber-600" icon={<Icons.FileText />} onAdd={() => { setFormData({...formData, type: 'bill', category: 'Housing', walletId: activeWalletId}); setShowForm(true); }} onClick={() => setActiveFilter(activeFilter === 'bill' ? 'all' : 'bill')} active={activeFilter === 'bill'} />
+                            <SummaryCard title="Spending" amount={summary.spending} color="text-rose-600" icon={<Icons.TrendingDown />} onAdd={() => { setFormData({...formData, type: 'spending', category: 'Food', walletId: activeWalletId}); setShowForm(true); }} onClick={() => setActiveFilter(activeFilter === 'spending' ? 'all' : 'spending')} active={activeFilter === 'spending'} />
                             <SummaryCard title="Balance" amount={summary.balance} color={summary.balance >= 0 ? "text-blue-600" : "text-red-600"} icon={<Icons.CreditCard />} onClick={() => setActiveFilter('all')} active={activeFilter === 'all'} />
-                            <SummaryCard title="Assets" amount={summary.assets} color="text-indigo-600" icon={<Icons.Bank />} onAdd={() => { setAssetData({ id: null, type: 'bank', name: '', value: '', weight: '', pricePerUnit: '', symbol: '' }); setShowAssetForm(true); }} />
+                                <SummaryCard 
+                                    title="Safe Spend" 
+                                    amount={summary.safeToSpend} 
+                                    color={summary.safeToSpend >= 0 ? "text-emerald-600" : "text-rose-600"} 
+                                    icon={<Icons.Activity />} 
+                                    onClick={() => {
+                                        const goal = prompt("Set monthly savings goal:", monthlySavingsGoal);
+                                        if (goal !== null) setMonthlySavingsGoal(parseFloat(goal) || 0);
+                                    }}
+                                    isSetting
+                                />
+                                <SummaryCard title="Paid Bills" amount={summary.paidBills} color="text-emerald-600" icon={<Icons.Check />} onClick={() => setActiveFilter(activeFilter === 'unpaid' ? 'all' : 'unpaid')} active={activeFilter === 'unpaid'} />
+                                <SummaryCard title="Assets" amount={summary.assets} color="text-indigo-600" icon={<Icons.Bank />} onAdd={() => { setAssetData({ id: null, type: 'bank', name: '', value: '', weight: '', pricePerUnit: '', symbol: '' }); setShowAssetForm(true); }} onClick={() => setShowNetWorthModal(true)} />
                             <SummaryCard title="Net Worth" amount={summary.netWorth} color="text-emerald-700" icon={<Icons.Gem />} highlight onClick={() => setShowNetWorthModal(true)} />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div className="bg-white dark:bg-gray-800 p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                                <div>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Bills Paid</p>
+                                    <p className="text-xl font-mono font-bold text-emerald-600">{summary.paidBillsCount} / {summary.totalBillsCount}</p>
+                                </div>
+                                <div className="w-24 h-2 bg-gray-100 dark:bg-gray-700 rounded-full overflow-hidden">
+                                    <div className="h-full bg-emerald-500 transition-all duration-700" style={{ width: `${summary.totalBillsCount > 0 ? (summary.paidBillsCount / summary.totalBillsCount) * 100 : 0}%` }}></div>
+                                </div>
+                            </div>
+                            <div className="bg-white dark:bg-gray-800 p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                                <div>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Avg. Monthly Income</p>
+                                    <p className="text-xl font-mono font-bold text-blue-600">${averages.avgInc.toFixed(0)}</p>
+                                </div>
+                                <Icons.TrendingUp />
+                            </div>
+                            <div className="bg-white dark:bg-gray-800 p-4 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700 flex items-center justify-between">
+                                <div>
+                                    <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Avg. Monthly Expenses</p>
+                                    <p className="text-xl font-mono font-bold text-rose-600">${averages.avgExp.toFixed(0)}</p>
+                                </div>
+                                <Icons.TrendingDown />
+                            </div>
                         </div>
 
                         {monthlyTransactions.length === 0 && transactions.length > 0 && (
                             <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 p-4 rounded-2xl flex flex-col md:flex-row items-center justify-between gap-4">
                                 <p className="text-emerald-800 dark:text-emerald-200 text-sm">Empty month. Copy recurring items or everything from last month?</p>
                                 <div className="flex gap-2">
-                                    <button onClick={() => {
-                                        const recurring = transactions.filter(t => t.isRecurring);
-                                        if (recurring.length === 0) return alert("No recurring items found.");
-                                        const newItems = recurring.map(t => ({
-                                            ...t,
-                                            id: Date.now() + Math.random(),
-                                            date: dayjs(currentMonth).startOf('month').format('YYYY-MM-DD')
-                                        }));
-                                        setTransactions([...newItems, ...transactions]);
-                                    }} className="bg-white dark:bg-gray-800 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/40">Copy Recurring</button>
+                                    <button onClick={postRecurringTransactions} className="bg-white dark:bg-gray-800 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-400 px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-50 dark:hover:bg-emerald-900/40">Copy Recurring</button>
                                     <button onClick={copyPrev} className="bg-emerald-600 text-white px-4 py-2 rounded-xl text-sm font-medium hover:bg-emerald-700">Copy All Bills/Income</button>
                                 </div>
                             </div>
@@ -855,6 +1079,38 @@
                                 </div>
 
                                 <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                    <div className="flex justify-between items-center mb-6">
+                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest">Debts & Loans</h3>
+                                        <button onClick={() => {
+                                            setDebtData({ id: null, name: '', balance: '', minPayment: '', interestRate: '', projectedPayoff: '' });
+                                            setShowDebtForm(true);
+                                        }} className="text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-900/30 p-1 rounded-lg transition-all"><Icons.Plus /></button>
+                                    </div>
+                                    <div className="space-y-4">
+                                        {debts.length > 0 ? debts.map(debt => (
+                                            <div key={debt.id} className="p-3 bg-gray-50 dark:bg-gray-700/50 rounded-2xl border border-gray-100 dark:border-gray-700 group/debt">
+                                                <div className="flex justify-between items-start mb-2">
+                                                    <div>
+                                                        <p className="text-sm font-bold text-gray-700 dark:text-gray-200">{debt.name}</p>
+                                                        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-tighter">{debt.interestRate}% APR • Min: ${debt.minPayment}</p>
+                                                    </div>
+                                                    <div className="text-right">
+                                                        <p className="text-sm font-mono font-bold text-rose-600">${parseFloat(debt.balance).toFixed(2)}</p>
+                                                        <div className="flex justify-end gap-1 opacity-0 group-hover/debt:opacity-100 transition-opacity">
+                                                            <button onClick={() => { setDebtData(debt); setShowDebtForm(true); }} className="text-[10px] text-blue-600 hover:underline">Edit</button>
+                                                            <button onClick={() => { if(confirm("Delete debt?")) setDebts(debts.filter(d => d.id !== debt.id)) }} className="text-[10px] text-rose-600 hover:underline">Delete</button>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                                <div className="w-full bg-gray-200 dark:bg-gray-600 h-1 rounded-full overflow-hidden">
+                                                    <div className="h-full bg-rose-500" style={{ width: '100%' }}></div>
+                                                </div>
+                                            </div>
+                                        )) : <p className="text-xs text-gray-400 italic">No debts tracked.</p>}
+                                    </div>
+                                </div>
+
+                                <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
                                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Financial Insights</h3>
                                     <div className="space-y-4">
                                         <div className="p-4 bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-100 dark:border-emerald-800 rounded-2xl">
@@ -873,6 +1129,49 @@
 
                             {/* Main Content */}
                             <div className="lg:col-span-9 space-y-8">
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                                    <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Spending by Category</h3>
+                                        <div className="h-64">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={categoryBreakdown}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? '#374151' : '#f1f5f9'} />
+                                                    <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                                                    <Tooltip 
+                                                        contentStyle={{ backgroundColor: isDarkMode ? '#1f2937' : '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                                                        itemStyle={{ fontSize: '12px', fontWeight: 'bold' }}
+                                                    />
+                                                    <Bar dataKey="amount" radius={[4, 4, 0, 0]}>
+                                                        {categoryBreakdown.map((entry, index) => (
+                                                            <Cell key={`cell-${index}`} fill={CATEGORIES[entry.name]?.color.replace('bg-', '#').replace('emerald-500', '10b981').replace('blue-500', '3b82f6').replace('indigo-600', '4f46e5').replace('cyan-500', '06b6d4').replace('orange-500', 'f97316').replace('purple-500', 'a855f7').replace('pink-500', 'ec4899').replace('yellow-500', 'eab308').replace('red-500', 'ef4444').replace('slate-600', '475569').replace('teal-500', '14b8a6').replace('gray-500', '6b7280') || '#10b981'} />
+                                                        ))}
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+
+                                    <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
+                                        <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">Income vs Expenses</h3>
+                                        <div className="h-64">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <LineChart data={trendData}>
+                                                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke={isDarkMode ? '#374151' : '#f1f5f9'} />
+                                                    <XAxis dataKey="label" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                                                    <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: '#94a3b8' }} />
+                                                    <Tooltip 
+                                                        contentStyle={{ backgroundColor: isDarkMode ? '#1f2937' : '#fff', borderRadius: '12px', border: 'none', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
+                                                    />
+                                                    <Legend wrapperStyle={{ fontSize: '10px', fontWeight: 'bold', textTransform: 'uppercase' }} />
+                                                    <Line type="monotone" dataKey="income" stroke="#10b981" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                                    <Line type="monotone" dataKey="expenses" stroke="#ef4444" strokeWidth={3} dot={{ r: 4 }} activeDot={{ r: 6 }} />
+                                                </LineChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                                     <div className="bg-white dark:bg-gray-800 p-6 rounded-3xl shadow-sm border border-gray-100 dark:border-gray-700">
                                         <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-6">6-Month Trend</h3>
@@ -944,7 +1243,7 @@
                                         <div className="flex items-center gap-4">
                                             <h2 className="text-xl font-medium">Activity</h2>
                                             <div className="flex bg-gray-100 dark:bg-gray-700 p-1 rounded-xl">
-                                                {['all', 'income', 'bill', 'spending'].map(f => (
+                                                {['all', 'income', 'bill', 'spending', 'unpaid', 'recurring'].map(f => (
                                                     <button 
                                                         key={f} 
                                                         onClick={() => setActiveFilter(f)}
@@ -972,12 +1271,31 @@
                                         {filteredTransactions.length > 0 ? filteredTransactions.sort((a, b) => dayjs(b.date).unix() - dayjs(a.date).unix()).map(t => (
                                             <div key={t.id} className="p-4 flex items-center justify-between hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors group">
                                                 <div className="flex items-center gap-4">
-                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${t.type === 'income' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : t.type === 'bill' ? 'bg-amber-50 dark:bg-amber-900/20 text-amber-600 dark:text-amber-400' : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'}`}>
+                                                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center text-lg ${t.type === 'income' ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400' : t.type === 'bill' ? (t.isPaid ? 'bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600' : 'bg-amber-50 dark:bg-amber-900/20 text-amber-600') : 'bg-rose-50 dark:bg-rose-900/20 text-rose-600 dark:text-rose-400'}`}>
                                                         {t.type === 'income' ? '💰' : CATEGORIES[t.category]?.icon || '💸'}
                                                     </div>
                                                     <div>
-                                                        <p className="font-medium text-sm">{t.description} {t.isRecurring && <span className="text-[10px] bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-bold uppercase ml-1">Recurring</span>}</p>
-                                                        <p className="text-xs text-gray-400 font-medium">{dayjs(t.date).format('MMM DD')} • {t.category}</p>
+                                                        <div className="flex items-center gap-2">
+                                                            <p className="font-medium text-sm">{t.description}</p>
+                                                            {t.isRecurring && <span className="text-[8px] bg-blue-100 dark:bg-blue-900/40 text-blue-600 dark:text-blue-400 px-1.5 py-0.5 rounded-full font-bold uppercase">Recurring</span>}
+                                                            {t.type === 'bill' && (
+                                                                <button 
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setTransactions(transactions.map(x => x.id === t.id ? {...x, isPaid: !x.isPaid, datePaid: !x.isPaid ? dayjs().format('YYYY-MM-DD') : ''} : x));
+                                                                    }}
+                                                                    className={`text-[8px] px-1.5 py-0.5 rounded-full font-bold uppercase transition-all ${t.isPaid ? 'bg-emerald-100 text-emerald-600' : 'bg-rose-100 text-rose-600 animate-pulse'}`}
+                                                                >
+                                                                    {t.isPaid ? 'Paid' : 'Unpaid'}
+                                                                </button>
+                                                            )}
+                                                        </div>
+                                                        <div className="flex items-center gap-2 mt-0.5">
+                                                            <span className={`text-[10px] px-1.5 py-0.5 rounded-md text-white font-bold ${CATEGORIES[t.category]?.color || 'bg-gray-400'}`}>{t.category}</span>
+                                                            <p className="text-[10px] text-gray-400 font-medium">{dayjs(t.date).format('MMM DD')}</p>
+                                                            {t.isPaid && t.datePaid && <p className="text-[10px] text-emerald-500 font-medium">Paid on {dayjs(t.datePaid).format('MMM DD')}</p>}
+                                                            {t.type === 'bill' && !t.isPaid && dayjs().isAfter(dayjs(t.date)) && <span className="text-[8px] text-rose-500 font-bold uppercase">Overdue</span>}
+                                                        </div>
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-2">
@@ -1008,20 +1326,33 @@
                                         <div className="grid grid-cols-2 gap-4">
                                             <div className="space-y-1">
                                                 <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Amount</label>
-                                                <input type="number" step="0.01" placeholder="0.00" required className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} />
+                                                <div className="relative">
+                                                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">$</span>
+                                                    <input type="number" step="0.01" placeholder="0.00" required className="w-full p-3 pl-7 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" value={formData.amount} onChange={e => setFormData({...formData, amount: e.target.value})} />
+                                                </div>
                                             </div>
                                             <div className="space-y-1">
                                                 <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Date</label>
                                                 <input type="date" required className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" value={formData.date} onChange={e => setFormData({...formData, date: e.target.value})} />
                                             </div>
                                         </div>
-                                        <div className="space-y-1">
-                                            <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Category</label>
-                                            <select className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-                                                {Object.keys(CATEGORIES).map(cat => (
-                                                    <option key={cat} value={cat}>{CATEGORIES[cat].icon} {cat}</option>
-                                                ))}
-                                            </select>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Wallet</label>
+                                                <select className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" value={formData.walletId} onChange={e => setFormData({...formData, walletId: e.target.value})}>
+                                                    {wallets.map(w => (
+                                                        <option key={w.id} value={w.id}>{w.name}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Category</label>
+                                                <select className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
+                                                    {CATEGORIES_BY_TYPE[formData.type].map(cat => (
+                                                        <option key={cat} value={cat}>{CATEGORIES[cat]?.icon || '📦'} {cat}</option>
+                                                    ))}
+                                                </select>
+                                            </div>
                                         </div>
                                         <div className="space-y-1">
                                             <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Type</label>
@@ -1031,16 +1362,192 @@
                                                 ))}
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2 py-2">
-                                            <input type="checkbox" id="recurring" checked={formData.isRecurring} onChange={e => setFormData({...formData, isRecurring: e.target.checked})} className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500" />
-                                            <label htmlFor="recurring" className="text-sm text-gray-700 dark:text-gray-300 font-medium">Recurring Transaction</label>
+                                        <div className="grid grid-cols-2 gap-4 items-center py-2">
+                                            <div className="flex items-center gap-2">
+                                                <input type="checkbox" id="recurring" checked={formData.isRecurring} onChange={e => setFormData({...formData, isRecurring: e.target.checked})} className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500" />
+                                                <label htmlFor="recurring" className="text-sm text-gray-700 dark:text-gray-300 font-medium">Recurring</label>
+                                            </div>
+                                            {formData.type === 'bill' && (
+                                                <div className="flex items-center gap-2">
+                                                    <input type="checkbox" id="isPaid" checked={formData.isPaid} onChange={e => setFormData({...formData, isPaid: e.target.checked, datePaid: e.target.checked ? dayjs().format('YYYY-MM-DD') : ''})} className="w-4 h-4 text-emerald-600 rounded focus:ring-emerald-500" />
+                                                    <label htmlFor="isPaid" className="text-sm text-gray-700 dark:text-gray-300 font-medium">Mark as Paid</label>
+                                                </div>
+                                            )}
                                         </div>
+                                        {formData.isPaid && (
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Date Paid</label>
+                                                <input type="date" className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" value={formData.datePaid} onChange={e => setFormData({...formData, datePaid: e.target.value})} />
+                                            </div>
+                                        )}
                                         <div className="flex gap-3 pt-4">
                                             <button type="button" onClick={() => {
                                                 setShowForm(false);
                                                 setFormData({ id: null, description: '', amount: '', type: 'spending', category: 'General', date: dayjs().format('YYYY-MM-DD'), isRecurring: false });
                                             }} className="flex-1 p-3 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl font-medium">Cancel</button>
                                             <button type="submit" className="flex-1 p-3 bg-emerald-600 text-white rounded-xl shadow-lg hover:bg-emerald-700 font-semibold">{formData.id ? 'Update' : 'Save'}</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+
+                        {showWalletModal && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                                <div className="bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl shadow-2xl p-8 space-y-6 fade-in">
+                                    <div className="flex justify-between items-center">
+                                        <h2 className="text-2xl font-medium tracking-tight">Manage Wallets</h2>
+                                        <button onClick={() => setShowWalletModal(false)} className="text-gray-400 hover:text-gray-600"><Icons.Plus className="rotate-45" /></button>
+                                    </div>
+                                    
+                                    <div className="space-y-3 max-h-60 overflow-y-auto pr-2">
+                                        {wallets.map(w => (
+                                            <div key={w.id} className="flex items-center justify-between p-3 bg-gray-50 dark:bg-gray-700 rounded-xl border border-gray-100 dark:border-gray-600">
+                                                <div className="flex items-center gap-3">
+                                                    <span className="text-xl">{w.icon === 'User' ? '👤' : '💼'}</span>
+                                                    <span className="font-medium">{w.name}</span>
+                                                </div>
+                                                <button 
+                                                    onClick={() => {
+                                                        if (wallets.length > 1) {
+                                                            setWallets(wallets.filter(item => item.id !== w.id));
+                                                            if (activeWalletId === w.id) setActiveWalletId(wallets.find(item => item.id !== w.id).id);
+                                                        } else {
+                                                            alert("You must have at least one wallet.");
+                                                        }
+                                                    }}
+                                                    className="p-2 text-rose-500 hover:bg-rose-50 dark:hover:bg-rose-900/30 rounded-lg transition-colors"
+                                                >
+                                                    <Icons.Trash />
+                                                </button>
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="h-px bg-gray-100 dark:bg-gray-700 my-2"></div>
+
+                                    <form onSubmit={(e) => {
+                                        e.preventDefault();
+                                        if (!walletData.name) return;
+                                        const newWallet = { ...walletData, id: Date.now().toString() };
+                                        setWallets([...wallets, newWallet]);
+                                        setWalletData({ id: null, name: '', icon: 'User' });
+                                    }} className="space-y-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">New Wallet Name</label>
+                                            <input type="text" placeholder="e.g. Savings, Travel" className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-emerald-500 dark:text-white" value={walletData.name} onChange={e => setWalletData({...walletData, name: e.target.value})} />
+                                        </div>
+                                        <div className="flex gap-2">
+                                            <button type="button" onClick={() => setWalletData({...walletData, icon: 'User'})} className={`flex-1 p-2 rounded-xl border transition-all ${walletData.icon === 'User' ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white dark:bg-gray-700 border-gray-100 dark:border-gray-600 text-gray-500'}`}>👤 Personal</button>
+                                            <button type="button" onClick={() => setWalletData({...walletData, icon: 'Briefcase'})} className={`flex-1 p-2 rounded-xl border transition-all ${walletData.icon === 'Briefcase' ? 'bg-emerald-600 border-emerald-600 text-white' : 'bg-white dark:bg-gray-700 border-gray-100 dark:border-gray-600 text-gray-500'}`}>💼 Business</button>
+                                        </div>
+                                        <button type="submit" className="w-full p-3 bg-emerald-600 text-white rounded-xl shadow-lg hover:bg-emerald-700 font-semibold flex items-center justify-center gap-2">
+                                            <Icons.Plus /> Add Wallet
+                                        </button>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+
+                        {showAssetForm && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                                <div className="bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl shadow-2xl p-8 space-y-6 fade-in">
+                                    <h2 className="text-2xl font-medium tracking-tight">{assetData.id ? 'Edit Asset' : 'New Asset'}</h2>
+                                    <form onSubmit={handleAddAsset} className="space-y-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Asset Type</label>
+                                            <div className="grid grid-cols-3 gap-2">
+                                                {[
+                                                    { id: 'bank', label: 'Bank', icon: '🏦' },
+                                                    { id: 'crypto', label: 'Crypto', icon: '🪙' },
+                                                    { id: 'metal', label: 'Metal', icon: '💎' }
+                                                ].map(t => (
+                                                    <button key={t.id} type="button" onClick={() => setAssetData({...assetData, type: t.id})} className={`p-2 rounded-xl text-xs border transition-all font-medium flex flex-col items-center gap-1 ${assetData.type === t.id ? 'bg-indigo-600 border-indigo-600 text-white' : 'bg-white dark:bg-gray-700 border-gray-100 dark:border-gray-600 text-gray-600 dark:text-gray-300'}`}>
+                                                        <span className="text-lg">{t.icon}</span>
+                                                        {t.label}
+                                                    </button>
+                                                ))}
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Name</label>
+                                            <input type="text" placeholder="e.g. Chase Savings, Bitcoin, Gold" required className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" value={assetData.name} onChange={e => setAssetData({...assetData, name: e.target.value})} />
+                                        </div>
+                                        {assetData.type === 'metal' ? (
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Weight (oz)</label>
+                                                    <input type="number" step="0.001" placeholder="0.000" required className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" value={assetData.weight} onChange={e => setAssetData({...assetData, weight: e.target.value})} />
+                                                </div>
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Price per oz</label>
+                                                    <input type="number" step="0.01" placeholder="0.00" required className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" value={assetData.pricePerUnit} onChange={e => setAssetData({...assetData, pricePerUnit: e.target.value})} />
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="grid grid-cols-2 gap-4">
+                                                <div className="space-y-1">
+                                                    <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Value</label>
+                                                    <input type="number" step="0.01" placeholder="0.00" required className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" value={assetData.value} onChange={e => setAssetData({...assetData, value: e.target.value})} />
+                                                </div>
+                                                {assetData.type === 'crypto' && (
+                                                    <div className="space-y-1">
+                                                        <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Symbol</label>
+                                                        <input type="text" placeholder="BTC, ETH" className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-indigo-500 dark:text-white" value={assetData.symbol} onChange={e => setAssetData({...assetData, symbol: e.target.value})} />
+                                                    </div>
+                                                )}
+                                            </div>
+                                        )}
+                                        <div className="flex gap-3 pt-4">
+                                            <button type="button" onClick={() => setShowAssetForm(false)} className="flex-1 p-3 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl font-medium">Cancel</button>
+                                            <button type="submit" className="flex-1 p-3 bg-indigo-600 text-white rounded-xl shadow-lg hover:bg-indigo-700 font-semibold">{assetData.id ? 'Update' : 'Add Asset'}</button>
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        )}
+
+                        {showDebtForm && (
+                            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+                                <div className="bg-white dark:bg-gray-800 w-full max-w-md rounded-3xl shadow-2xl p-8 space-y-6 fade-in">
+                                    <h2 className="text-2xl font-medium tracking-tight">{debtData.id ? 'Edit Debt' : 'New Debt'}</h2>
+                                    <form onSubmit={(e) => {
+                                        e.preventDefault();
+                                        const newDebt = {
+                                            ...debtData,
+                                            id: debtData.id || Date.now().toString(),
+                                            balance: parseFloat(debtData.balance || 0),
+                                            minPayment: parseFloat(debtData.minPayment || 0),
+                                            interestRate: parseFloat(debtData.interestRate || 0)
+                                        };
+                                        if (debtData.id) {
+                                            setDebts(debts.map(d => d.id === debtData.id ? newDebt : d));
+                                        } else {
+                                            setDebts([...debts, newDebt]);
+                                        }
+                                        setShowDebtForm(false);
+                                    }} className="space-y-4">
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Debt Name</label>
+                                            <input type="text" placeholder="e.g. Credit Card, Student Loan" required className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 dark:text-white" value={debtData.name} onChange={e => setDebtData({...debtData, name: e.target.value})} />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Current Balance</label>
+                                                <input type="number" step="0.01" placeholder="0.00" required className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 dark:text-white" value={debtData.balance} onChange={e => setDebtData({...debtData, balance: e.target.value})} />
+                                            </div>
+                                            <div className="space-y-1">
+                                                <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Interest Rate (%)</label>
+                                                <input type="number" step="0.01" placeholder="0.00" className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 dark:text-white" value={debtData.interestRate} onChange={e => setDebtData({...debtData, interestRate: e.target.value})} />
+                                            </div>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <label className="text-[10px] uppercase tracking-widest text-gray-400 font-bold">Minimum Payment</label>
+                                            <input type="number" step="0.01" placeholder="0.00" className="w-full p-3 bg-gray-50 dark:bg-gray-700 rounded-xl outline-none focus:ring-2 focus:ring-rose-500 dark:text-white" value={debtData.minPayment} onChange={e => setDebtData({...debtData, minPayment: e.target.value})} />
+                                        </div>
+                                        <div className="flex gap-3 pt-4">
+                                            <button type="button" onClick={() => setShowDebtForm(false)} className="flex-1 p-3 text-gray-500 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-xl font-medium">Cancel</button>
+                                            <button type="submit" className="flex-1 p-3 bg-rose-600 text-white rounded-xl shadow-lg hover:bg-rose-700 font-semibold">{debtData.id ? 'Update' : 'Add Debt'}</button>
                                         </div>
                                     </form>
                                 </div>
@@ -1160,7 +1667,7 @@
         }
 
 
-        function SummaryCard({ title, amount, color, icon, highlight, onAdd, onClick, active }) {
+        function SummaryCard({ title, amount, color, icon, highlight, onAdd, onClick, active, isSetting }) {
             return (
                 <div 
                     onClick={onClick}
@@ -1168,7 +1675,9 @@
                 >
                     <div className="flex justify-between items-start">
                         <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">{title}</span>
-                        <div className={`p-2 rounded-xl transition-colors ${active ? 'bg-emerald-500 text-white' : 'bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500'}`}>{icon}</div>
+                        <div className={`p-2 rounded-xl transition-colors ${active ? 'bg-emerald-500 text-white' : 'bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500'}`}>
+                            {isSetting ? <Icons.Settings /> : icon}
+                        </div>
                     </div>
                     <div className="flex justify-between items-end">
                         <p className={`text-2xl font-mono tracking-tight ${color}`}>${amount.toFixed(2)}</p>
