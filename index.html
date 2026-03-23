@@ -29,6 +29,60 @@
         .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
         input[type="date"] { appearance: none; -webkit-appearance: none; }
         #error-display { display: none; padding: 20px; margin: 20px; background: #fef2f2; border: 1px solid #fee2e2; border-radius: 12px; color: #991b1b; font-family: monospace; white-space: pre-wrap; }
+
+        /* Splash Screen Animations */
+        @keyframes fadeInUp {
+            from { opacity: 0; transform: translateY(30px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .animate-fade-in-up { animation: fadeInUp 1s ease-out forwards; opacity: 0; }
+        
+        @keyframes float {
+            0%, 100% { transform: translateY(0) rotate(0deg); }
+            50% { transform: translateY(-30px) rotate(10deg); }
+        }
+        .animate-float { animation: float 8s ease-in-out infinite; }
+
+        .glitch-text {
+            position: relative;
+            display: inline-block;
+        }
+        .glitch-text::before, .glitch-text::after {
+            content: attr(data-text);
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: inherit;
+        }
+        .glitch-text::before {
+            left: 2px;
+            text-shadow: -2px 0 #10b981;
+            clip: rect(44px, 450px, 56px, 0);
+            animation: glitch-anim 5s infinite linear alternate-reverse;
+        }
+        .glitch-text::after {
+            left: -2px;
+            text-shadow: -2px 0 #3b82f6, 2px 2px #10b981;
+            animation: glitch-anim2 1s infinite linear alternate-reverse;
+        }
+        @keyframes glitch-anim {
+            0% { clip: rect(31px, 9999px, 94px, 0); transform: skew(0.85deg); }
+            20% { clip: rect(70px, 9999px, 71px, 0); transform: skew(0.1deg); }
+            40% { clip: rect(10px, 9999px, 33px, 0); transform: skew(0.5deg); }
+            60% { clip: rect(80px, 9999px, 100px, 0); transform: skew(0.2deg); }
+            80% { clip: rect(50px, 9999px, 66px, 0); transform: skew(0.9deg); }
+            100% { clip: rect(67px, 9999px, 62px, 0); transform: skew(0.6deg); }
+        }
+        @keyframes glitch-anim2 {
+            0% { clip: rect(65px, 9999px, 100px, 0); transform: skew(0.3deg); }
+            20% { clip: rect(10px, 9999px, 30px, 0); transform: skew(0.1deg); }
+            40% { clip: rect(40px, 9999px, 60px, 0); transform: skew(0.8deg); }
+            60% { clip: rect(70px, 9999px, 90px, 0); transform: skew(0.4deg); }
+            80% { clip: rect(20px, 9999px, 40px, 0); transform: skew(0.2deg); }
+            100% { clip: rect(50px, 9999px, 70px, 0); transform: skew(0.5deg); }
+        }
     </style>
 </head>
 <body>
@@ -124,6 +178,7 @@
         ];
 
         function App() {
+            const [showSplash, setShowSplash] = useState(true);
             const [transactions, setTransactions] = useState([]);
             const [savingsGoals, setSavingsGoals] = useState([]);
             const [assets, setAssets] = useState([]);
@@ -158,6 +213,13 @@
                 pricePerUnit: '',
                 symbol: '' 
             });
+
+            useEffect(() => {
+                const timer = setTimeout(() => {
+                    setShowSplash(false);
+                }, 4500);
+                return () => clearTimeout(timer);
+            }, []);
 
             useEffect(() => {
                 const savedData = localStorage.getItem(STORAGE_KEY);
@@ -540,6 +602,10 @@
                 }));
                 setTransactions([...newItems, ...transactions]);
             };
+
+            if (showSplash) {
+                return <SplashScreen />;
+            }
 
             return (
                 <div className={`min-h-screen transition-colors duration-300 ${isDarkMode ? 'dark bg-gray-900 text-gray-100' : 'bg-slate-50 text-gray-900'}`}>
@@ -1058,20 +1124,48 @@
                     onClick={onClick}
                     className={`bg-white dark:bg-gray-800 border-gray-100 dark:border-gray-700 p-6 rounded-3xl shadow-sm border flex flex-col justify-between h-32 relative group transition-all duration-300 ${onClick ? 'cursor-pointer' : ''} ${highlight ? 'bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 border-gray-200 dark:border-gray-600' : ''} ${active ? 'ring-2 ring-emerald-500 shadow-md transform scale-[1.02]' : 'hover:shadow-md hover:scale-[1.01]'}`}
                 >
-                    <div className="flex justify-between items-start">
-                        <span className="text-xs font-semibold uppercase tracking-widest text-gray-400">{title}</span>
+                    <div className=\"flex justify-between items-start\">
+                        <span className=\"text-xs font-semibold uppercase tracking-widest text-gray-400\">{title}</span>
                         <div className={`p-2 rounded-xl transition-colors ${active ? 'bg-emerald-500 text-white' : 'bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500'}`}>{icon}</div>
                     </div>
-                    <div className="flex justify-between items-end">
+                    <div className=\"flex justify-between items-end\">
                         <p className={`text-2xl font-mono tracking-tight ${color}`}>${amount.toFixed(2)}</p>
                         {onAdd && (
                             <button 
                                 onClick={(e) => { e.stopPropagation(); onAdd(); }} 
-                                className="p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100 bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30"
+                                className=\"p-1.5 rounded-lg transition-all opacity-0 group-hover:opacity-100 bg-gray-50 dark:bg-gray-700 text-gray-400 dark:text-gray-500 hover:text-emerald-600 dark:hover:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-900/30\"
                             >
                                 <Icons.Plus />
                             </button>
                         )}
+                    </div>
+                </div>
+            );
+        }
+
+        function SplashScreen() {
+            return (
+                <div className=\"fixed inset-0 z-[100] bg-slate-50 dark:bg-gray-900 flex flex-col items-center justify-center overflow-hidden\">
+                    {/* Floating Money Sign */}
+                    <div className=\"absolute text-[30rem] md:text-[50rem] font-bold text-emerald-500/5 select-none pointer-events-none animate-float\">
+                        $
+                    </div>
+                    
+                    <div className=\"relative z-10 text-center space-y-6 px-4\">
+                        <h2 className=\"text-3xl md:text-5xl font-light text-gray-400 animate-fade-in-up\">Welcome To:</h2>
+                        <h1 className=\"text-6xl md:text-9xl font-bold text-emerald-600 animate-fade-in-up [animation-delay:0.5s] tracking-tighter\">SpendWise</h1>
+                        <p className=\"text-lg md:text-2xl text-gray-500 animate-fade-in-up [animation-delay:1.2s]\">
+                            Created by <span className=\"glitch-text font-bold text-gray-800 dark:text-gray-200\" data-text=\"HattyHats\">HattyHats</span>
+                        </p>
+                        
+                        {/* Loading Sign */}
+                        <div className=\"pt-16 animate-fade-in [animation-delay:2.2s] flex flex-col items-center gap-4\">
+                            <div className=\"relative w-16 h-16\">
+                                <div className=\"absolute inset-0 border-4 border-emerald-100 dark:border-emerald-900/30 rounded-full\"></div>
+                                <div className=\"absolute inset-0 border-4 border-emerald-600 border-t-transparent rounded-full animate-spin\"></div>
+                            </div>
+                            <p className=\"text-[10px] font-bold uppercase tracking-[0.3em] text-emerald-600/60\">Initializing System</p>
+                        </div>
                     </div>
                 </div>
             );
