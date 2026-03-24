@@ -1,3 +1,7 @@
+ Coding and creating websites are very new to me so I am learning as I go with the help of AI. Join me on my journey as I try to create free, open source and easy to use websites for everyone. I am trying to create things that I would use on a daily basis and hope that they can help others along the way.
+thanks for stopping by and checking out the code
+Remember, stay curious and keep learning
+
 # SpendWise Tracker
 
 SpendWise is a premium, standalone personal finance management application built with React and Tailwind CSS. It is designed to be a comprehensive tool for tracking income, expenses, assets, and debts in a single, elegant interface.
