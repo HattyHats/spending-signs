@@ -535,8 +535,74 @@ function App(){
 
     const exportCSV=()=>{ const rows=[['Date','Description','Category','Type','Amount','Recurring','Paid'],...mTxs.sort((a,b)=>dayjs(a.date).unix()-dayjs(b.date).unix()).map(t=>[t.date,`"${t.description.replace(/"/g,'""')}"`,t.category,t.type,t.amount.toFixed(2),t.isRecurring?'Yes':'No',t.isPaid?'Yes':'No'])]; const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([rows.map(r=>r.join(',')).join('\n')],{type:'text/csv'})),download:`SpendWise_${dayjs(month).format('YYYY_MM')}.csv`});a.click(); };
     const exportPDF=()=>{ const {jsPDF}=window.jspdf;const doc=new jsPDF();const ms=dayjs(month).format('MMMM YYYY');doc.setFontSize(20);doc.text(`SpendWise — ${ms}`,14,20);doc.autoTable({startY:30,head:[['Metric','Amount']],body:[['Income',`$${fmt(sum.inc)}`],['Bills',`$${fmt(sum.bills)}`],['Spending',`$${fmt(sum.sp)}`],['Balance',`$${fmt(sum.bal)}`]],theme:'striped',headStyles:{fillColor:[34,197,94]}});doc.autoTable({startY:doc.lastAutoTable.finalY+15,head:[['Date','Description','Type','Amount']],body:mTxs.sort((a,b)=>dayjs(a.date).unix()-dayjs(b.date).unix()).map(t=>[dayjs(t.date).format('MMM DD'),t.description,t.type,`$${t.amount.toFixed(2)}`]),theme:'grid'});doc.save(`SpendWise_${dayjs(month).format('YYYY_MM')}.pdf`); };
-    const backup=()=>{ const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(new Blob([JSON.stringify({txs,goals,assets,budgets,wallets,debts,v:4},null,2)],{type:'application/json'})),download:`SpendWise_Backup_${dayjs().format('YYYY-MM-DD')}.json`});a.click(); };
-    const restore=e=>{ const f=e.target.files[0];if(!f)return;const r=new FileReader();r.onload=ev=>{try{const p=JSON.parse(ev.target.result);if(!p.txs&&!p.assets){alert('Invalid file.');return;}if(!confirm('Merge with current data?'))return;if(p.txs)setTxs(prev=>{const ids=new Set(prev.map(t=>t.id));return[...p.txs.map(t=>ids.has(t.id)?{...t,id:uid()}:t),...prev];});if(p.goals)setGoals(g=>[...p.goals,...g]);if(p.assets)setAssets(a=>[...p.assets.map(x=>x.id?x:{...x,id:uid()}),...a]);if(p.budgets)setBudgets(b=>({...b,...p.budgets}));alert('Imported!');}catch(err){alert('Error: '+err.message);}};r.readAsText(f);e.target.value=''; };
+    const backup=()=>{
+        const data={txs,goals,assets,budgets,wallets,debts,savTgt,aw,v:4,exportDate:new Date().toISOString()};
+        const blob=new Blob([JSON.stringify(data,null,2)],{type:'application/json'});
+        const a=Object.assign(document.createElement('a'),{href:URL.createObjectURL(blob),download:`SpendWise_Backup_${dayjs().format('YYYY-MM-DD')}.json`});
+        a.click();
+        URL.revokeObjectURL(a.href);
+    };
+    const restore=e=>{
+        const f=e.target.files[0];if(!f)return;
+        const r=new FileReader();
+        r.onload=ev=>{
+            try{
+                const p=JSON.parse(ev.target.result);
+                // Accept any backup that has at least one known field
+                const hasData=p.txs||p.transactions||p.assets||p.goals||p.debts||p.budgets;
+                if(!hasData){alert('Invalid backup file — no recognisable data found.');return;}
+
+                // Support both old key name (transactions) and new (txs)
+                const inTxs   = p.txs || p.transactions || [];
+                const inGoals = p.goals || p.savingsGoals || [];
+                const inAssets= p.assets || [];
+                const inBudgets=p.budgets || {};
+                const inWallets=p.wallets || [];
+                const inDebts  =p.debts || [];
+
+                const mode=confirm(
+                    `Backup contains:\n` +
+                    `• ${inTxs.length} transactions\n` +
+                    `• ${inGoals.length} savings goals\n` +
+                    `• ${inAssets.length} assets\n` +
+                    `• ${inDebts.length} debts\n\n` +
+                    `Click OK to REPLACE all current data.\nClick Cancel to MERGE (add on top of existing data).`
+                );
+
+                if(mode){
+                    // Replace everything
+                    const seen=new Set();
+                    setTxs(inTxs.map(t=>{
+                        if(!t.id||seen.has(t.id)){const id=uid();seen.add(id);return{...t,id};}
+                        seen.add(t.id);return t;
+                    }));
+                    setGoals(inGoals.map(g=>g.id?g:{...g,id:uid()}));
+                    setAssets(inAssets.map(a=>a.id?a:{...a,id:uid()}));
+                    setBudgets(inBudgets);
+                    if(inWallets.length>0) setWallets(inWallets);
+                    setDebts(inDebts.map(d=>d.id?d:{...d,id:uid()}));
+                    alert(`✅ Replaced! Imported ${inTxs.length} transactions, ${inGoals.length} goals, ${inAssets.length} assets, ${inDebts.length} debts.`);
+                } else {
+                    // Merge — skip duplicates by id
+                    if(inTxs.length>0) setTxs(prev=>{
+                        const ids=new Set(prev.map(t=>t.id));
+                        return [...prev,...inTxs.map(t=>ids.has(t.id)?{...t,id:uid()}:t)];
+                    });
+                    if(inGoals.length>0) setGoals(g=>[...g,...inGoals.map(x=>x.id?x:{...x,id:uid()})]);
+                    if(inAssets.length>0) setAssets(a=>[...a,...inAssets.map(x=>x.id?x:{...x,id:uid()})]);
+                    if(Object.keys(inBudgets).length>0) setBudgets(b=>({...b,...inBudgets}));
+                    if(inWallets.length>0) setWallets(ws=>{
+                        const ids=new Set(ws.map(w=>w.id));
+                        return [...ws,...inWallets.filter(w=>!ids.has(w.id))];
+                    });
+                    if(inDebts.length>0) setDebts(d=>[...d,...inDebts.map(x=>x.id?x:{...x,id:uid()})]);
+                    alert(`✅ Merged! Added ${inTxs.length} transactions, ${inGoals.length} goals, ${inAssets.length} assets, ${inDebts.length} debts.`);
+                }
+            }catch(err){alert('Error reading backup: '+err.message);}
+        };
+        r.readAsText(f);
+        e.target.value='';
+    };
     const cpRec=()=>{ const ex=new Set(mTxs.filter(t=>t.isRecurring).map(t=>t.description.toLowerCase()+'|'+t.amount)); const toAdd=txs.filter(t=>t.isRecurring&&(t.walletId||'personal')===aw&&!ex.has(t.description.toLowerCase()+'|'+t.amount)); if(!toAdd.length){alert('All recurring items already posted.');return;} setTxs(p=>[...toAdd.map(t=>({...t,id:uid(),date:dayjs(month).date(Math.min(dayjs(t.date).date(),dayjs(month).daysInMonth())).format('YYYY-MM-DD'),isPaid:false,datePaid:''})),...p]); alert(`Posted ${toAdd.length} recurring items.`); };
     const cpPrev=()=>{ const pm=dayjs(month).subtract(1,'month'); const items=txs.filter(t=>dayjs(t.date).isBetween(pm.startOf('month'),pm.endOf('month'),null,'[]')&&(t.type==='income'||t.type==='bill')); if(!items.length){alert('No income/bills in previous month.');return;} setTxs(p=>[...items.map(t=>({...t,id:uid(),date:dayjs(month).startOf('month').format('YYYY-MM-DD'),isPaid:false,datePaid:''})),...p]); alert(`Copied ${items.length} items.`); };
 
